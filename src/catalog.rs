@@ -1,3 +1,4 @@
+use serde::Deserialize;
 pub type ProductId=u32;
 #[derive(Debug)]
 pub struct Product{
@@ -8,7 +9,8 @@ pub struct Product{
     pub inventory_quantity:u32,
     pub published:bool
 }
-#[derive(Debug)]
+
+#[derive(Debug, Deserialize)]
 pub struct ProductCreate{
     pub title:String,
     pub handle:String,
