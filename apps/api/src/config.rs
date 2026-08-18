@@ -4,8 +4,8 @@ pub const HOST:&str="APP_HOST";
 pub const PORT:&str="APP_PORT";
 
 pub struct Config{
-    host:String,
-    port:u16
+   pub host:String,
+    pub port:u16
 }
 impl Config{
    pub fn new()->Self

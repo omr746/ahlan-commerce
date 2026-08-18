@@ -4,6 +4,7 @@ mod config;
 mod routes;
 mod handlers;
 mod dto;
+mod error;
 use config::Config;
 #[tokio::main]
 async fn main() {

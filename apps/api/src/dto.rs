@@ -13,6 +13,18 @@ pub struct ProductCreateRequest{
     pub published: bool,
 
 }
+impl ProductCreateRequest {
+ 
+    pub fn validate(&self) -> Result<(), String> {
+        if self.title.trim().is_empty() {
+            return Err("Product title is required.".to_string());
+        }
+        if self.handle.trim().is_empty() {
+            return Err("Product handle is required.".to_string());
+        }
+        Ok(())
+    }
+}
 impl From<ProductCreateRequest> for ProductCreate{
     fn from(req:ProductCreateRequest)->Self{
         ProductCreate {

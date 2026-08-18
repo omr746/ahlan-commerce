@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::clock::Clock;
 use crate::id::{IdGenerator, ProductId};
-
+use crate::error::CatalogError;
 #[derive(Debug)]
 pub struct Product{
     pub id:ProductId,
@@ -34,7 +34,11 @@ impl Catalog{
             products: Vec::new(),
         }
     }
-    pub fn create_product(&mut self, input:ProductCreate,id:&dyn IdGenerator,clock:&dyn Clock)->&Product{
+    pub fn create_product(&mut self, input:ProductCreate,id:&dyn IdGenerator,clock:&dyn Clock)
+    ->Result<&Product,CatalogError>{
+        if self.products.iter().any(|p| p.handle == input.handle) {
+            return Err(CatalogError::DuplicateHandle(input.handle));
+        }
         let now = clock.now();
         let product=Product{
             id:id.new_id(),
@@ -48,10 +52,13 @@ impl Catalog{
 
         };
         self.products.push(product);
-        self.products.last().unwrap()
+        Ok(self.products.last().unwrap())
     }
-    pub fn list_products(&self)-> &Vec<Product>{
-        &self.products
+    pub fn list_products(&self)->&Vec<Product>{
+       &self.products
+    }
+    pub fn get_product(&self,id:ProductId)-> Result<&Product,CatalogError>{
+      self.products.iter().find(|p|p.id==id).ok_or(CatalogError::NotFound(id))
     }
 }
 
@@ -79,7 +86,7 @@ mod tests{
             published:true
         };
         let mut catalog=Catalog::new();
-        let created_product=catalog.create_product(product,&ids,&clock);
+        let created_product=catalog.create_product(product,&ids,&clock).unwrap();
         assert_eq!(created_product.title,"Test Product");
         assert_eq!(created_product.handle,"test-product");
         assert_eq!(created_product.price_cents,1000);

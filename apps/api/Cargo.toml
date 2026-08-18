@@ -2,7 +2,9 @@
 name = "api"
 version = "0.1.0"
 edition = "2024"
-
+[[bin]]
+name = "simulate_root_cause"
+path = "src/simulate_root_cause.rs"
 [dependencies]
 catalog = { path = "../../packages/catalog" }
 axum = { workspace = true }
@@ -10,3 +12,10 @@ tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
+thiserror = { workspace = true }
+rootcause = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
