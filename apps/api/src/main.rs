@@ -5,9 +5,12 @@ mod routes;
 mod handlers;
 mod dto;
 mod error;
+mod observability;
 use config::Config;
+use observability::init_tracing;
 #[tokio::main]
 async fn main() {
+  init_tracing();
    let config=Config::new();
    let addr=config.addr();
   let state=AppState::new(config);

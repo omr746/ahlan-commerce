@@ -1,8 +1,6 @@
 
 use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Response},
-    Json
+    Json, http::{StatusCode, status}, response::{IntoResponse, Response}
 };
 use rootcause::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -101,15 +99,22 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
         self.request_id
     }
     pub fn log(&self){
-      if let Some(cause)= &self.cause{
-         eprintln!(
-                "level=error request_id={} code={} public_message={:?} root_cause=\"{}\"",
-                self.request_id,
-                self.code(),
-                self.public_message(),
-                cause,
-            );
-      }
+        match &self.cause {
+            Some(cause) => tracing::error!(
+                request_id = %self.request_id,
+                error_code = self.code(),
+                message = %self.public_message(),
+                root_cause = %cause,
+                "request failed with an internal error"
+            ),
+            None => tracing::warn!(
+                request_id = %self.request_id,
+                error_code = self.code(),
+                message = %self.public_message(),
+                "request failed"
+            ),
+        }
+      
     }
 
  pub fn body(&self) -> ErrorEnvelope {
@@ -140,9 +145,16 @@ pub struct ErrorEnvelope {
 impl IntoResponse for AppError{
     fn into_response(self)->Response{
         self.log();
-        (self.status(),Json(self.body())).into_response()
+        let status=self.status();
+        let code=ErrorCode(self.code());
+        let mut response=(status,Json(self.body())).into_response();
+        response.extensions_mut().insert(code);
+        response
+      
     }
 }
 
 
 
+#[derive(Clone, Copy)]
+pub struct ErrorCode(pub &'static str);

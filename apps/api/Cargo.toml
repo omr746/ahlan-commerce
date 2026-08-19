@@ -5,6 +5,10 @@ edition = "2024"
 [[bin]]
 name = "simulate_root_cause"
 path = "src/simulate_root_cause.rs"
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
 [dependencies]
 catalog = { path = "../../packages/catalog" }
 axum = { workspace = true }
@@ -15,7 +19,10 @@ chrono = { workspace = true }
 thiserror = { workspace = true }
 rootcause = { workspace = true }
 uuid = { workspace = true }
-
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tower-http = { workspace = true }
+tower = { workspace = true }
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"

@@ -13,7 +13,7 @@ use crate::handlers::{create_product, get_product, health, list_products};
 use crate::config::Config;
 use crate::routes;
 use crate::dto::{ProductCreateRequest, ProductResponse};
-
+use crate::observability::{self, current_request_id};
 #[derive(Clone)]
 pub struct AppState{
     pub catalog:Arc<Mutex<Catalog>>,
@@ -47,13 +47,14 @@ impl AppState{
 
 
  pub fn create_router(state:AppState)->Router{
-   Router::new()
+  let router= Router::new()
    .route(routes::HEALTH,get(health))
      .route(
             routes::PRODUCTS,
             get(list_products).post(create_product),
         ).route(routes::PRODUCT_BY_ID, get(get_product))
-   .with_state(state)
+   .with_state(state);
+    observability::with_request_tracing(router)
 }
 
 
