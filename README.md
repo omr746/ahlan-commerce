@@ -337,3 +337,22 @@ just connects and queries. Run `atlas migrate apply --env local` before
 `cargo run -p api` (and before running tests) if the `products` table
 doesn't exist yet.
 
+## Chapter 05.2 - Documenting the commands
+
+A `Makefile` at the project root wraps the raw commands used throughout
+this README so far, so nobody has to remember `atlas migrate apply --env
+local` (or the rest) by hand:
+
+​```bash
+make build          # cargo build --workspace
+make run            # cargo run -p api
+make test           # cargo test --workspace
+make health          # curl -sf http://127.0.0.1:$(APP_PORT)/health
+make migrate         # atlas migrate apply --env local
+make migrate-diff name=add_sku   # atlas migrate diff add_sku --env local
+​```
+
+Every target's one-sentence explanation plus the exact raw command it
+wraps is in `docs/commands.md`. Deliberately not added yet: mprocs,
+Redis, a worker target, or a Cornucopia regeneration target - all later
+chapters.

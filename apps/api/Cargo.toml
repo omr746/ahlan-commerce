@@ -2,12 +2,7 @@
 name = "api"
 version = "0.1.0"
 edition = "2024"
-[[bin]]
-name = "simulate_root_cause"
-path = "src/simulate_root_cause.rs"
-[[bin]]
-name = "main"
-path = "src/main.rs"
+
 
 [dependencies]
 catalog = { path = "../../packages/catalog" }
