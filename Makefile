@@ -1,6 +1,24 @@
-.PHONY: build run test health migrate migrate-diff
+.PHONY: build run  test health migrate migrate-diff db-start db-stop db-logs start stop
 
 APP_PORT ?= 3000
+
+# Starts local Postgres via Docker Compose and waits until it reports
+# healthy (per the healthcheck in docker-compose.yml) before returning -
+# so a `make migrate` or `make test` run right after this never races
+# against a database that's still starting up. First run also creates
+# the Atlas scratch "dev" database (see db/docker-init/).
+start:
+	$(MAKE) db-start
+	mprocs
+stop:
+	$(MAKE) db-stop
+db-start:
+	docker compose up -d --wait
+
+# Stops the Postgres container. Data survives (named volume, not
+# removed) - `make db-start` again resumes with the same data.
+db-stop:
+	docker compose down
 
 # Compiles every crate in the workspace.
 build:
@@ -10,6 +28,8 @@ build:
 run:
 	cargo run -p api
 
+db-logs:
+	docker compose logs -f postgres
 # Runs every unit and integration test in the workspace. The apps/api
 # integration tests need a reachable Postgres with migrations already
 # applied - run `make migrate` first if the products table doesn't exist.

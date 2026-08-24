@@ -3,6 +3,14 @@
 Every target below is defined in the `Makefile` at the project root. Run
 `make <target>` from there.
 
+## `make db-start`
+
+Starts local Postgres (both `ahlan_commerce` and Atlas's scratch dev database) via Docker Compose and waits until it's ready to accept connections. Wraps: `docker compose up -d --wait`
+
+## `make db-stop`
+
+Stops the Postgres container without deleting its data. Wraps: `docker compose down`
+
 ## `make build`
 
 Compiles every crate in the workspace. Wraps: `cargo build --workspace`

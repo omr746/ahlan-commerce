@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 132456
+      POSTGRES_DB: ahlan-commerce
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      # Persist PostgreSQL data between container restarts
+      - pgdata:/var/lib/postgresql/data
+
+      # Run initialization SQL scripts on first database initialization
+      - ./db/docker-init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

@@ -338,21 +338,107 @@ just connects and queries. Run `atlas migrate apply --env local` before
 doesn't exist yet.
 
 ## Chapter 05.2 - Documenting the commands
-
+ 
 A `Makefile` at the project root wraps the raw commands used throughout
 this README so far, so nobody has to remember `atlas migrate apply --env
 local` (or the rest) by hand:
-
-​```bash
-make build          # cargo build --workspace
-make run            # cargo run -p api
-make test           # cargo test --workspace
-make health          # curl -sf http://127.0.0.1:$(APP_PORT)/health
-make migrate         # atlas migrate apply --env local
+ 
+```bash
+make db-start        # docker compose up -d --wait
+make db-stop          # docker compose down
+make build            # cargo build --workspace
+make run              # cargo run -p api
+make test             # cargo test --workspace
+make health           # curl -sf http://127.0.0.1:$(APP_PORT)/health
+make migrate          # atlas migrate apply --env local
 make migrate-diff name=add_sku   # atlas migrate diff add_sku --env local
-​```
-
+```
+ 
+`docker-compose.yml` (+ `db/docker-init/`) runs local Postgres for
+development - `make db-start` brings up both the app's database
+(`ahlan_commerce`) and the scratch database Atlas needs for diffing
+(`ahlan_commerce_atlas_dev`, created once via the init script). Data
+persists in a named volume across `db-stop`/`db-start` cycles.
+ 
 Every target's one-sentence explanation plus the exact raw command it
 wraps is in `docs/commands.md`. Deliberately not added yet: mprocs,
 Redis, a worker target, or a Cornucopia regeneration target - all later
 chapters.
+
+# Chapter 06 - Local Process Board & Debugging
+
+Chapter 06 introduces `mprocs` as a local development tool for running and monitoring multiple processes from a single terminal interface.
+
+## Task 06.1 - Add Local Process Board
+
+The local process board combines the API and PostgreSQL processes into one view.
+
+### Inputs
+
+* `make run`
+* `make db-start` or the PostgreSQL health command
+
+### Output
+
+* `mprocs` configuration for the API and PostgreSQL
+* `make start`
+* `make stop`
+
+### Result
+
+Running:
+
+```bash
+make start
+```
+
+opens one `mprocs` view containing:
+
+```text
+API
+ └── API logs
+
+PostgreSQL
+ └── DB logs
+```
+
+This makes it easier to monitor the application and database without opening separate terminals.
+
+## Task 06.2 - Add Local Debug Notes
+
+Created:
+
+* `docs/local-runtime.md`
+* Notes explaining where to find API logs
+* Notes explaining where to find PostgreSQL logs
+* Explanation of the local development workflow
+
+The detailed debugging notes are available in:
+
+```text
+docs/local-runtime.md
+```
+
+### Local Workflow vs Production
+
+`mprocs` is used only as a **local development workflow tool**.
+
+It helps developers run and monitor multiple local processes from one terminal. It is not a production deployment mechanism.
+
+The production environment would use dedicated deployment and process-management infrastructure.
+
+### Chapter 06 Summary
+
+By completing Chapter 06, the local workflow can be started with:
+
+```bash
+make start
+```
+
+and stopped when needed with:
+
+```bash
+make stop
+```
+
+The API and PostgreSQL logs can then be monitored from the corresponding processes inside `mprocs`.
