@@ -4,16 +4,18 @@ use serde::Serialize;
 use crate::clock::Clock;
 use crate::id::{IdGenerator, ProductId};
 use crate::error::CatalogError;
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Product{
     pub id:ProductId,
     pub title:String,
     pub handle:String,
     pub price_cents:u32,
+    pub description: Option<String>,
     pub inventory_quantity:u32,
     pub published:bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+     pub published_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug)]
@@ -22,7 +24,10 @@ pub struct ProductCreate{
     pub handle:String,
     pub price_cents:u32,
     pub inventory_quantity:u32,
-    pub published:bool
+    pub published:bool,
+     pub description: Option<String>,
+
+
 }
 #[derive(Debug)]
 pub struct Catalog{
@@ -39,14 +44,18 @@ impl Catalog{
         if self.products.iter().any(|p| p.handle == input.handle) {
             return Err(CatalogError::DuplicateHandle(input.handle));
         }
-        let now = clock.now();
+          let now = clock.now();
+           let published_at = if input.published { Some(now) } else { None };
+      
         let product=Product{
             id:id.new_id(),
             title:input.title,
             handle:input.handle,
             price_cents:input.price_cents,
+            description:input.description,
             inventory_quantity:input.inventory_quantity,
             published:input.published,
+            published_at,
             created_at: now,
             updated_at: now,
 
@@ -82,6 +91,7 @@ mod tests{
             title:"Test Product".to_string(),
             handle:"test-product".to_string(),
             price_cents:1000,
+            description:None,
             inventory_quantity:10,
             published:true
         };
@@ -102,6 +112,7 @@ mod tests{
             handle:"test-product".to_string(),
             price_cents:1000,
             inventory_quantity:10,
+            description:None,
             published:true
         };
         let mut catalog=Catalog{products:Vec::new()};

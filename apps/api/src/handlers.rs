@@ -31,29 +31,30 @@ pub async fn create_product(
      input
         .validate()
         .map_err(|message| AppError::validation(message, request_id))?;
-    let mut catalog=state.catalog.lock().await;
-    let product=catalog
+   
+    let product=state.catalog
     .create_product(input.into(), state.ids.as_ref(), state.clock.as_ref())
+    .await
     .map_err(|err|AppError::from_catalog(err, request_id))?;
-    let response=product.into();
+
      tracing::info!(
         request_id = %request_id,
         product_id = %product.id,
         product_handle = %product.handle,
         "product created"
     );
-    Ok((StatusCode::CREATED,Json(response)))
+    Ok((StatusCode::CREATED,Json(ProductResponse::from(&product))))
 }
 
 pub async fn list_products(
-    State(state):State<AppState>
-)->Json<Vec<ProductResponse>>{
-let catalog=state.catalog.lock().await;
-let products=catalog.list_products();
-let response=products.iter().map(|product|
-    product.into()
-).collect();
-Json(response)
+    State(state):State<AppState>,
+    Extension(raw_request_id): Extension<RequestId>
+)-> Result<Json<Vec<ProductResponse>>, AppError>{
+     let request_id = current_request_id(&raw_request_id);
+
+let products=state.catalog.list_products().await.map_err(|err| AppError::from_catalog(err, request_id))?;
+
+    Ok(Json(products.iter().map(ProductResponse::from).collect()))
 }
 
 
@@ -68,11 +69,11 @@ let request_id=current_request_id(&raw_request_id);
         .parse()
         .map_err(|_| AppError::validation(format!("'{id}' is not a valid product id."), request_id))?;
 
-let catalog=state.catalog.lock().await;
-let product=catalog
-.get_product(product_id).map_err(|err|AppError::from_catalog(err, request_id))?;
 
-Ok(Json(product.into()))
+let product=state.catalog
+.get_product(product_id).await.map_err(|err|AppError::from_catalog(err, request_id))?;
+
+Ok(Json(ProductResponse::from(&product)))
 
 }
 

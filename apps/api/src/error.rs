@@ -71,6 +71,13 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
       match err{
             CatalogError::DuplicateHandle(handle) => Self::duplicate_handle(handle, request_id),
             CatalogError::NotFound(id) => Self::not_found(format!("product {id}"), request_id),
+               CatalogError::Storage(source) => {
+               
+                let cause = Err::<(), _>(source)
+                    .context("product storage query failed")
+                    .unwrap_err();
+                Self::dependency_unavailable(request_id, cause.into())
+            }
       }
     }
        pub fn code(&self) -> &'static str {
