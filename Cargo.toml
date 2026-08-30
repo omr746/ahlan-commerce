@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/api", "packages/catalog"]
+members = ["apps/api", "packages/catalog","packages/catalog-db"]
 resolver = "2"
 
 
@@ -18,3 +18,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tower-http = { version = "0.7", features = ["trace", "request-id", "util"] }
 tower = "0.5"
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono"] }
+cornucopia = "1"

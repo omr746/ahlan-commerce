@@ -442,3 +442,148 @@ make stop
 ```
 
 The API and PostgreSQL logs can then be monitored from the corresponding processes inside `mprocs`.
+
+
+# Chapter 07 - SQL-First Data Access Layer
+
+Chapter 06 wired up local process management. Chapter 07 replaces the
+hand-written `sqlx::query()` strings living in `postgres.rs` (Chapter
+04) with a generated, boundary-enforced data access layer, and writes
+down why that boundary matters.
+
+## Task 07.1 - Feeling raw SQL drift
+
+Before touching Cornucopia, this task deliberately reproduced the pain
+`packages/db` exists to prevent: adding a new query shape
+(`list_published_products`) and a new insert/update path
+(`description`, `published_at` on create and on publish) directly as
+`&str` SQL in `postgres.rs`, with hand-written `Product` mapping for
+each.
+
+Findings, written up in `docs/raw-sql-drift.md`:
+
+- **SQL strings that changed**: the `INSERT` in `create_product` (two
+  new columns), a brand-new `SELECT ... WHERE published = true`
+  string, and the `UPDATE` used by `update_product_publication`.
+- **Rust structs that changed**: `Product` and `ProductCreate` in
+  `packages/catalog` (new fields), plus every hand-rolled row-to-
+  `Product` mapping site that had to remember to read the new columns
+  back out of the `sqlx::Row`.
+- **What compiled while still being wrong**: a `SELECT` that forgot to
+  list `published_at` compiles fine - `sqlx::query()` (not `query!`)
+  has no compile-time link to the schema, so a missing column just
+  becomes a runtime "column not found" panic or, worse, silently maps
+  to the *previous* struct shape if the row-to-struct code is written
+  positionally instead of by name.
+- **What could leak to production**: forgetting to filter `published =
+  true` in the new query and shipping the "list published" endpoint
+  as an unfiltered `SELECT *` - nothing in the type system or in
+  Atlas's migration tracking would catch that, because Atlas only
+  tracks *schema*, never *queries*. A migration can apply cleanly
+  while the query that's supposed to read the new column is wrong or
+  missing entirely.
+
+This is exactly the gap Task 07.3 (Cornucopia) exists to close: Atlas
+guarantees the database matches `db/schema/products.sql`; nothing
+before Cornucopia guaranteed the *queries* matched the schema.
+
+## Task 07.2 - ORM vs. SQL-first code generation
+
+`docs/dal-alternatives.md` compares Diesel, SeaORM, SQLx's `query!`
+compile-time checking, a generic "SQL-first codegen" pattern, and
+Cornucopia:
+
+| Approach | Pros | Cons | Protects against | Doesn't protect against |
+|---|---|---|---|---|
+| Diesel | Mature, compile-time query builder, no live DB needed at build time (uses generated schema) | Heavy DSL to learn, migrations feel parallel to Atlas instead of shared | Malformed queries, some type mismatches | Business rules, still needs schema kept in sync manually with Diesel's own migration format |
+| SeaORM | Async-native, active-record ergonomics, decent codegen from an existing DB | Hides the actual SQL, harder to `EXPLAIN`/tune, more moving parts for a one-table project | Basic type mismatches | Same schema-drift class of bug as raw SQL if the codegen step is stale |
+| SQLx `query!` | Real SQL, compile-time checked against a live DB, minimal abstraction | Needs `DATABASE_URL` reachable at `cargo build` time - couples CI/dev builds to a running Postgres | Column name/type typos, missing columns | Nothing stops someone using plain `query()` alongside it, reintroducing Task 07.1's problem |
+| SQL-first codegen (general) | SQL stays the source of truth, generated types can't drift from what the SQL actually selects | Requires a regeneration step to be run and remembered | Struct/column mismatches, most drift from 07.1 | Forgetting to run the generator; forgetting to write the query file in the first place |
+| **Cornucopia (chosen)** | Same benefits as SQL-first codegen, no live-DB requirement at build time (reads schema statically), generates typed query modules per `.sql` file, plays well with Atlas since both take the same schema file as their only shared truth | Adds a generation step (`make cornucopia-generate`) that must be rerun after schema *or* query changes | Every failure mode from Task 07.1: missing columns, wrong param types, positional-mapping mistakes | Bad business logic in the query itself, and a developer skipping the regenerate step before committing |
+
+Why Ahlan uses Cornucopia specifically: it doesn't require a running
+database at compile time (unlike `sqlx::query!`), it keeps every query
+as a real, readable, `EXPLAIN`-able `.sql` file (unlike Diesel/SeaORM),
+and it reads the exact same `db/schema/products.sql` that Atlas
+manages - so there's one schema file, not two competing sources of
+truth. The trade-off, spelled out in the doc: SQL-first codegen still
+needs discipline. It removes the *silent* failure mode from 07.1 (wrong
+code that compiles) but not the *loud* one (forgetting to run the
+generator at all) - that's a process/CI concern, not something the tool
+enforces by itself.
+
+## Task 07.3 - Introducing Cornucopia
+
+Query files now live under `db/queries/products/`, one file per
+statement, matching `query-contract.md` exactly on file name, query
+name, parameters, return fields, and ordering:
+
+```
+db/queries/products/create_product.sql
+db/queries/products/list_products.sql
+db/queries/products/list_published_products.sql
+db/queries/products/update_product_publication.sql
+```
+
+```bash
+make cornucopia-generate
+```
+
+runs Cornucopia against `db/schema/products.sql` + `db/queries/products/`
+and emits typed Rust modules (`create_product::CreateProduct`,
+`list_products::ListProducts`, etc.) - these are the types consumed in
+`postgres.rs`. Rerunning the target after either a schema change
+(`db/schema/products.sql`, applied via `make migrate`) or a query
+change regenerates cleanly with no manual edits.
+
+How a change flows end to end:
+
+1. Schema changes → `db/schema/products.sql` → `atlas migrate diff` →
+   `make migrate` applies it to Postgres.
+2. Query changes → edit/add a `.sql` file under `db/queries/products/`.
+3. `make cornucopia-generate` reads the *current* schema plus every
+   query file and regenerates the matching Rust module - if a query
+   references a column that doesn't exist, or binds the wrong
+   parameter count/type, generation (or the subsequent `cargo build`)
+   fails at build time instead of at runtime in production.
+
+## Task 07.4 - The DAL boundary
+
+`packages/catalog_db` (the `PgCatalog` shown earlier in this conversation) is
+the only crate that imports the generated `catalog_db_queries` modules.
+It exposes `create_product`, `list_products`, `list_published_products`,
+and `update_product_publication` as plain async functions returning
+domain `Product`/`CatalogDbError` types - no Cornucopia types, no SQL,
+cross this boundary outward.
+
+`apps/api` handlers call `PgCatalog` methods only; they hold no `&str`
+SQL and never import `catalog_db_queries` directly. Tests in
+`packages/db` exercise `create_product` → `list_products` →
+`list_published_products` against a real Postgres (same
+`TEST_DATABASE_URL` pattern as Chapter 04), asserting the returned
+fields match the Chapter 04 product API contract, including the
+`published`/`published_at` pairing rule from Task 04.2.
+
+## Task 07.5 - Documenting the boundary
+
+`docs/dal.md` is the map for a new engineer:
+
+- **Schema** lives in `db/schema/products.sql`, owned by Atlas.
+- **Migrations** are generated into `db/migrations/` by
+  `atlas migrate diff` and applied by `atlas migrate apply` /
+  `make migrate`.
+- **Query files** live in `db/queries/products/*.sql`, owned by
+  Cornucopia, regenerated by `make cornucopia-generate`.
+- **Atlas vs. Cornucopia**: Atlas answers "does the database match the
+  desired schema?" and owns migration history. Cornucopia answers
+  "does this Rust code match what this SQL actually returns?" and owns
+  nothing about migration state - it only reads the schema, never
+  changes it. Run Atlas when the *shape of the table* changes; run
+  Cornucopia whenever the *schema or the queries* change, including
+  after every `make migrate`.
+- **Why handlers don't own persistence**: `apps/api` depends on
+  `packages/db`, not the other way around, and `packages/db` is the
+  only place `catalog_db_queries` is imported - the same one-directional
+  dependency rule from the very first "Folder shape" section in this
+  README, just extended one layer deeper now that there's a real
+  database involved.

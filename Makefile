@@ -1,4 +1,4 @@
-.PHONY: build run  test health migrate migrate-diff db-start db-stop db-logs start stop
+.PHONY: build run  test health migrate migrate-diff db-start db-stop db-logs start stop cornucopia-generate
 
 APP_PORT ?= 3000
 
@@ -49,3 +49,8 @@ migrate:
 # target database. Usage: make migrate-diff name=add_sku
 migrate-diff:
 	atlas migrate diff $(name) --env local
+cornucopia-generate:
+	cornucopia live "$$DATABASE_URL" \
+		--queries-path db/queries \
+		--destination packages/catalog-db/generated \
+		--async true

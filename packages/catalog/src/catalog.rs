@@ -19,6 +19,12 @@ pub struct Product{
 }
 
 #[derive(Debug)]
+pub struct ProductUpdate {
+    pub description: Option<String>,
+    pub published: bool,
+}
+
+#[derive(Debug)]
 pub struct ProductCreate{
     pub title:String,
     pub handle:String,

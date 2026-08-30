@@ -5,6 +5,6 @@ mod error;
 pub mod postgres;
 pub use clock::{Clock, FixedClock, SystemClock};
 pub use id::{FixedIdGenerator, IdGenerator, ProductId, UuidV7Generator};
-pub use catalog::{Catalog, Product, ProductCreate};
+pub use catalog::{Catalog, Product, ProductCreate,ProductUpdate};
 pub use error::CatalogError;
 pub use postgres::PgCatalog;

@@ -1,0 +1,3 @@
+[manifest.package]
+name = "catalog-db-queries"
+version = "0.1.0"

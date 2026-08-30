@@ -1,8 +1,22 @@
 use serde::{Deserialize, Serialize};
 
-use catalog::{Product, ProductCreate, ProductId};
+use catalog::{Product, ProductCreate, ProductId,ProductUpdate};
 use chrono::{DateTime, Utc};
 
+
+
+#[derive(Debug, Deserialize)]
+pub struct ProductUpdateRequest {
+    #[serde(default)]
+    pub description: Option<String>,
+    pub published: bool,
+}
+
+impl From<ProductUpdateRequest> for ProductUpdate {
+    fn from(req: ProductUpdateRequest) -> Self {
+        ProductUpdate { description: req.description, published: req.published }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct ProductCreateRequest{

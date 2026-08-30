@@ -5,7 +5,7 @@ use sqlx ::{PgPool,Row};
 use crate::clock::Clock;
 use crate::error::CatalogError;
 use crate::id::{IdGenerator, ProductId};
-use crate::catalog::{Product, ProductCreate};
+use crate::catalog::{Product, ProductCreate,ProductUpdate};
 
 const SCHEMA: &str = include_str!("../../../db/schema/schema.sql");
 
@@ -28,6 +28,14 @@ pub async fn connect(database_url:&str)->Result<Self,sqlx::Error>{
    pub async fn ensure_schema(pool:&PgPool)->Result<(),sqlx::Error>{
     sqlx::query(SCHEMA).execute(pool).await?;
     Ok(())
+   }
+   pub async fn get_published_products(&self)->Result<Vec<Product>,CatalogError>{
+     let rows = sqlx::query(
+            "select id, title, handle, description, price_cents, inventory_quantity, published, \
+             published_at, created_at, updated_at \
+             from products where published_at IS NOT NULL",
+        ).fetch_all(&self.pool).await.map_err(CatalogError::Storage)?;
+     rows.into_iter().map(product_from_row).collect()
    }
 
    pub async fn create_product(&self,input:ProductCreate,ids:&dyn IdGenerator,clock:&dyn Clock)->Result<Product,CatalogError>{
@@ -90,6 +98,42 @@ pub async fn connect(database_url:&str)->Result<Self,sqlx::Error>{
              published_at, created_at, updated_at \
              from products where id = $1",
         )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(CatalogError::Storage)?;
+
+        match row {
+            Some(row) => product_from_row(row),
+            None => Err(CatalogError::NotFound(id)),
+        }
+    }
+
+     pub async fn update_product(
+        &self,
+        id: ProductId,
+        input: ProductUpdate,
+        clock: &dyn Clock,
+    ) -> Result<Product, CatalogError> {
+        let now = clock.now();
+
+        let row = sqlx::query(
+            "update products set \
+             description = $1, \
+             published = $2, \
+             published_at = case \
+               when $2 = true and published_at is null then $3 \
+               when $2 = false then null \
+               else published_at \
+             end, \
+             updated_at = $3 \
+             where id = $4 \
+             returning id, title, handle, description, price_cents, inventory_quantity, \
+             published, published_at, created_at, updated_at",
+        )
+        .bind(&input.description)
+        .bind(input.published)
+        .bind(now)
         .bind(id)
         .fetch_optional(&self.pool)
         .await

@@ -1,2 +1,4 @@
-h1:j//v625pVhKxt1qLNXkHqKPpQpQDs3JSFBC4Gg4vHgk=
+h1:PgM9VVAlfkS1YX+JO6ze91aEtkq+ZHnUMPhTnjH/0Ok=
 20260823133846_initial_products.sql h1:PJBWN0LCmk0RLmbU6AgZmlZbzgWTZxYiQCllNw1U+pg=
+20260826164149_make_published_at_nullable.sql h1:9+FPQraJbRUOp73oHSjeOD/7W2Q/dCZXJ/oLf3DhZnY=
+20260826164340_make_published_not_null.sql h1:oVWaNrbuwZaN0Z/9/ywoQqEdmkT5pYlGZtEN+u251tg=

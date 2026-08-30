@@ -6,7 +6,7 @@ use rootcause::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use catalog::CatalogError;
-
+use catalog_db::CatalogDbError;
 #[derive(Debug,thiserror::Error)]
 enum AppErrorKind{
   #[error("{0}")]
@@ -79,6 +79,28 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
                 Self::dependency_unavailable(request_id, cause.into())
             }
       }
+    }
+     pub fn from_catalog_db(err: CatalogDbError, request_id: Uuid) -> Self {
+        match err {
+            CatalogDbError::NotFound => {
+                Self::not_found("product".to_string(), request_id)
+            }
+            CatalogDbError::DuplicateHandle => {
+                Self::duplicate_handle("product handle".to_string(), request_id)
+            }
+            CatalogDbError::InvalidDatabaseUrl(_) => {
+                let cause = Err::<(), _>(err)
+                    .context("invalid database configuration")
+                    .unwrap_err();
+                Self::internal(request_id, cause.into())
+            }
+            CatalogDbError::Pool(_) | CatalogDbError::Database(_) | CatalogDbError::PoolGet(_) => {
+                let cause = Err::<(), _>(err)
+                    .context("product storage query failed")
+                    .unwrap_err();
+                Self::dependency_unavailable(request_id, cause.into())
+            }
+        }
     }
        pub fn code(&self) -> &'static str {
         match self.kind {

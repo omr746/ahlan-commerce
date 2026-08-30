@@ -6,6 +6,7 @@ edition = "2024"
 
 [dependencies]
 catalog = { path = "../../packages/catalog" }
+catalog-db = { path = "../../packages/catalog-db" }
 axum = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

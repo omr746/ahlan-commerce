@@ -6,7 +6,7 @@ create table products (
   price_cents integer not null,
   inventory_quantity integer not null,
   published boolean not null,
-  published_at timestamptz,
+  published_at timestamptz null,
   created_at timestamptz not null,
   updated_at timestamptz not null
 );

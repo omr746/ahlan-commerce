@@ -1,13 +1,7 @@
-mod app;
-use app::{create_router, AppState};
-mod config;
-mod routes;
-mod handlers;
-mod dto;
-mod error;
-mod observability;
-use config::Config;
-use observability::init_tracing;
+
+use api::app::{create_router, AppState};
+use api::config::Config;
+use api::observability::init_tracing;
 #[tokio::main]
 async fn main() {
   init_tracing();

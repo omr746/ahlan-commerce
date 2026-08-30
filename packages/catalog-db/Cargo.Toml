@@ -1,0 +1,16 @@
+[package]
+name = "catalog-db"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+catalog = { path = "../catalog" }
+catalog-db-queries= { path = "generated" }
+chrono.workspace = true
+uuid.workspace = true
+tokio.workspace = true
+
+tokio-postgres = "0.7"
+deadpool-postgres = "0.14"
+
+thiserror.workspace = true
