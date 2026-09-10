@@ -19,3 +19,5 @@ tower-http = { version = "0.7", features = ["trace", "request-id", "util"] }
 tower = "0.5"
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono"] }
 cornucopia = "1"
+async-graphql = "7"
+async-graphql-axum = "7"

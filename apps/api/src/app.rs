@@ -20,7 +20,7 @@ use crate::handlers::{
 };
 use crate::observability;
 use crate::routes;
-
+use crate::graphql::schema::{create_schema, AppSchema};
 #[derive(Clone)]
 pub struct AppState {
     pub catalog: PgCatalog,
@@ -45,28 +45,28 @@ impl AppState {
 }
 
 pub fn create_router(state: AppState) -> Router {
-    let router = Router::new()
-        // Health
-        .route(routes::HEALTH, get(health))
+    let schema =create_schema(state.clone());
 
-        // Published products
+    let router = Router::new()
+        .route(routes::HEALTH, get(health))
         .route(
             routes::PUBLISHED_PRODUCTS,
             get(get_published_products),
         )
-
-        // Products
         .route(
             routes::PRODUCTS,
-            get(list_products).post(create_product),
+            get(list_products)
+                .post(create_product),
         )
-
-        // Single product
         .route(
             routes::PRODUCT_BY_ID,
-         patch(update_product),
+            patch(update_product),
         )
-
+        .route(
+            "/graphql",
+            post(crate::graphql::handler::graphql_handler),
+        )
+        .layer(axum::Extension(schema))
         .with_state(state);
 
     observability::with_request_tracing(router)
