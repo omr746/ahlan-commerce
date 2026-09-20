@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  docs:
+    name: Documentation is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      # Task 14.3: fails the build when the checked-in generated artifacts
+      # no longer match the current API shape.
+      #
+      # Deliberately needs no services block -- no Postgres, no Redis. Both
+      # artifacts are derived from types, so this job stays fast and can't
+      # fail for infrastructure reasons unrelated to documentation.
+      - name: Check generated API docs are not stale
+        run: make docs-api-check
+
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 132456
+          POSTGRES_DB: ahlan-commerce
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
+
+    env:
+      DATABASE_URL: postgres://postgres:132456@127.0.0.1:5432/ahlan-commerce?sslmode=disable
+      REDIS_URL: redis://127.0.0.1:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Atlas
+        run: curl -sSf https://atlasgo.sh | sh
+
+      - name: Apply migrations
+        run: atlas migrate apply --url "$DATABASE_URL" --dir "file://db/migrations"
+
+      - name: Build
+        run: cargo build --workspace
+
+      - name: Test
+        run: cargo test --workspace

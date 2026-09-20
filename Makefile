@@ -1,4 +1,4 @@
-.PHONY: build run  test health migrate migrate-diff db-start db-stop db-logs start stop cornucopia-generate
+.PHONY: build run docs-api-check docs-api test health run-worker migrate migrate-diff db-start db-stop db-logs start stop cornucopia-generate redis-health redis-logs
 
 APP_PORT ?= 3000
 
@@ -12,6 +12,8 @@ start:
 	mprocs
 stop:
 	$(MAKE) db-stop
+run-worker:
+	cargo run -p import-worker
 db-start:
 	docker compose up -d --wait
 
@@ -26,7 +28,7 @@ build:
 
 # Runs the API locally on APP_PORT (default 3000).
 run:
-	cargo run -p api
+	cargo run -p api --bin api
 
 db-logs:
 	docker compose logs -f postgres
@@ -54,3 +56,38 @@ cornucopia-generate:
 		--queries-path db/queries \
 		--destination packages/catalog-db/generated \
 		--async true
+
+# Proves Redis is reachable — same idea as `health` for the API.
+redis-health:
+	docker compose exec redis redis-cli ping
+
+# Tails Redis's logs, same pattern as db-logs.
+redis-logs:
+	docker compose logs -f redis
+docs-api:
+	cargo run -p api --bin export-docs
+
+docs-api-check:
+	@set -e; \
+	tmp="$$(mktemp -d)"; \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	mkdir -p "$$tmp/docs/generated"; \
+	cp -r docs/generated "$$tmp/committed"; \
+	cargo run -q -p api --bin export-docs; \
+	if ! diff -u "$$tmp/committed/openapi.json" docs/generated/openapi.json; then \
+		echo ""; \
+		echo "ERROR: docs/generated/openapi.json is stale."; \
+		echo "The REST API shape changed but the generated spec was not updated."; \
+		echo "Run 'make docs-api' and commit the result."; \
+		cp "$$tmp/committed/openapi.json" docs/generated/openapi.json; \
+		exit 1; \
+	fi; \
+	if ! diff -u "$$tmp/committed/schema.graphql" docs/generated/schema.graphql; then \
+		echo ""; \
+		echo "ERROR: docs/generated/schema.graphql is stale."; \
+		echo "The GraphQL schema changed but the exported SDL was not updated."; \
+		echo "Run 'make docs-api' and commit the result."; \
+		cp "$$tmp/committed/schema.graphql" docs/generated/schema.graphql; \
+		exit 1; \
+	fi; \
+	echo "generated docs are up to date"

@@ -24,7 +24,7 @@ pub struct ProductUpdate {
     pub published: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct ProductCreate{
     pub title:String,
     pub handle:String,

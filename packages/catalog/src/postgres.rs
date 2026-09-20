@@ -7,7 +7,7 @@ use crate::error::CatalogError;
 use crate::id::{IdGenerator, ProductId};
 use crate::catalog::{Product, ProductCreate,ProductUpdate};
 
-const SCHEMA: &str = include_str!("../../../db/schema/schema.sql");
+const SCHEMA: &str = include_str!("../../../db/schema/products.sql");
 
 #[derive(Clone)]
 pub struct PgCatalog{

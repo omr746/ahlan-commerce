@@ -4,9 +4,11 @@ use axum::{
 };
 use rootcause::prelude::*;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 use catalog::CatalogError;
 use catalog_db::CatalogDbError;
+
 #[derive(Debug,thiserror::Error)]
 enum AppErrorKind{
   #[error("{0}")]
@@ -159,14 +161,15 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
 
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq,ToSchema)]
 pub struct ErrorBody {
     pub code: String,
     pub message: String,
+    #[schema(value_type = String, format = "uuid")]
     pub request_id: Uuid,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq,ToSchema)]
 pub struct ErrorEnvelope {
     pub error: ErrorBody,
 }

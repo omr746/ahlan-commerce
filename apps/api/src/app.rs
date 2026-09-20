@@ -4,11 +4,12 @@ use axum::{
     routing::{get, post,patch},
     Router,
 };
+use cache::Cache;
 use uuid::Uuid;
-
+use catalog_db::PgImportJobs; 
 use catalog::{Clock, IdGenerator, SystemClock, UuidV7Generator};
 use catalog_db::{create_pool, CatalogDbError, PgCatalog};
-
+use tower_http::cors::CorsLayer;
 use crate::config::Config;
 use crate::dto::ProductResponse;
 use crate::handlers::{
@@ -17,14 +18,23 @@ use crate::handlers::{
     health,
     list_products,
     update_product,
+    list_import_jobs, 
+    create_import_job, 
 };
+use utoipa::OpenApi;
 use crate::observability;
 use crate::routes;
 use crate::graphql::schema::{create_schema, AppSchema};
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_scalar::{Scalar, Servable};
+use crate::openapi::{documented_router, ApiDoc};
 #[derive(Clone)]
 pub struct AppState {
     pub catalog: PgCatalog,
+    pub import_jobs: PgImportJobs,
+     pub cache: Cache,
     pub config: Arc<Config>,
+        
     pub ids: Arc<dyn IdGenerator>,
     pub clock: Arc<dyn Clock>,
 }
@@ -33,10 +43,15 @@ impl AppState {
     pub async fn new(config: Config) -> Result<Self, CatalogDbError> {
         let pool = create_pool(&config.database_url).await?;
 
-        let catalog = PgCatalog::new(pool);
+        let catalog = PgCatalog::new(pool.clone());
+        let import_jobs = PgImportJobs::new(pool.clone());
 
+          let cache = Cache::new(&config.redis_url)
+            .expect("REDIS_URL is not a valid redis connection string");
         Ok(Self {
             catalog,
+            import_jobs,
+            cache,
             config: Arc::new(config),
             ids: Arc::new(UuidV7Generator),
             clock: Arc::new(SystemClock),
@@ -46,27 +61,22 @@ impl AppState {
 
 pub fn create_router(state: AppState) -> Router {
     let schema =create_schema(state.clone());
+     let (rest_router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .merge(documented_router())
+        .split_for_parts();
 
-    let router = Router::new()
-        .route(routes::HEALTH, get(health))
+    let router = rest_router
+        // Task 14.1: local docs route.
+        .merge(Scalar::with_url(routes::DOCS_SCALAR, api))
+        // Storefront HTML -- intentionally not in the OpenAPI spec.
         .route(
-            routes::PUBLISHED_PRODUCTS,
-            get(get_published_products),
+            routes::PRODUCT_PAGE,
+            get(crate::storefront_handler::get_product_page),
         )
-        .route(
-            routes::PRODUCTS,
-            get(list_products)
-                .post(create_product),
-        )
-        .route(
-            routes::PRODUCT_BY_ID,
-            patch(update_product),
-        )
-        .route(
-            "/graphql",
-            post(crate::graphql::handler::graphql_handler),
-        )
+        // GraphQL -- documented by schema.graphql instead.
+        .route("/graphql", post(crate::graphql::handler::graphql_handler))
         .layer(axum::Extension(schema))
+        .layer(CorsLayer::permissive())
         .with_state(state);
 
     observability::with_request_tracing(router)
@@ -100,13 +110,17 @@ mod tests {
         let pool = create_pool(&url).await
             .expect("create PostgreSQL pool for tests");
 
-        let catalog = PgCatalog::new(pool);
+        let catalog = PgCatalog::new(pool.clone());
+        let import_jobs = PgImportJobs::new(pool.clone());
 
         AppState {
             catalog,
+            import_jobs,
+            cache: Cache::new("redis://127.0.0.1:6379").expect("failed to create cache"),
             config: Arc::new(Config {
                 host: "127.0.0.1".into(),
                 port: 3000,
+                redis_url: "redis://127.0.0.1:6379".into(),
                 database_url: url,
             }),
             ids: Arc::new(UuidV7Generator),

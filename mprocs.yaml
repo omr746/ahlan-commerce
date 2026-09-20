@@ -1,6 +1,9 @@
 procs:
   api:
     shell: make run
-
+  worker:
+    shell: make run-worker
   postgres:
     shell: make db-logs
+  redis:
+    shell: make redis-logs

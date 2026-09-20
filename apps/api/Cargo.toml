@@ -3,10 +3,23 @@ name = "api"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "api"
+path = "src/lib.rs"
+
+[[bin]]
+name = "api"
+path = "src/main.rs"
+
+[[bin]]
+name = "export-docs"
+path = "src/bin/export-docs.rs"
 
 [dependencies]
 catalog = { path = "../../packages/catalog" }
 catalog-db = { path = "../../packages/catalog-db" }
+storefront = { path = "../../packages/storefront" }   
+cache = { path = "../../packages/cache" }      
 axum = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -22,6 +35,9 @@ tower = { workspace = true }
 sqlx = { workspace = true }
 async-graphql = { workspace = true }
 async-graphql-axum = { workspace = true }
+utoipa = { workspace = true }
+utoipa-axum = { workspace = true }
+utoipa-scalar = { workspace = true }
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"

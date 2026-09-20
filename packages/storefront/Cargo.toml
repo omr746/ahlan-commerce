@@ -1,0 +1,9 @@
+[package]
+name = "storefront"
+version = "0.1.0"
+edition= "2024"
+
+[dependencies]
+catalog = { path = "../catalog" }
+chrono = { workspace = true }
+uuid = { workspace = true }

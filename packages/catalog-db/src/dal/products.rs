@@ -11,6 +11,7 @@ use catalog_db_queries::queries::products::{
     list_products,
     list_published_products,
     update_product_publication,
+    get_published_product_by_handle
 };
 
 #[derive(Clone)]
@@ -216,6 +217,31 @@ impl PgCatalog {
             updated_at: row.updated_at.with_timezone(&Utc),
         })
     }
+    pub async fn get_published_product_by_handle(
+    &self,
+    handle: &str,
+) -> Result<Option<Product>, CatalogDbError> {
+    let client = self.pool.get().await?;
+    let row = get_published_product_by_handle::get_published_product_by_handle()
+        .bind(&client, &handle)
+        .opt()
+        .await
+        .map_err(CatalogDbError::from)?;
+
+    Ok(row.map(|r| Product {
+        id: r.id,
+        title: r.title,
+        handle: r.handle,
+        description: r.description,
+        price_cents: r.price_cents as u32,
+        inventory_quantity: r.inventory_quantity as u32,
+        published: r.published,
+        published_at: r.published_at.map(|dt| dt.with_timezone(&Utc)),
+        created_at: r.created_at.with_timezone(&Utc),
+        updated_at: r.updated_at.with_timezone(&Utc),
+    }))
+}
+
 }
 
 // ================================================================

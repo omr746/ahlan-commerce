@@ -22,3 +22,9 @@ pub fn create_schema(state: AppState) -> AppSchema {
     .data(state)
     .finish()
 }
+
+pub fn schema_sdl() -> String {
+    Schema::build(Query, Mutation, EmptySubscription)
+        .finish()
+        .sdl()
+}

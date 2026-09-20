@@ -5,4 +5,7 @@ pub mod error;
 pub mod observability;
 pub mod routes;
 pub mod handlers;
-mod graphql;
+pub mod storefront_handler;
+pub mod graphql;
+pub mod openapi;
+pub mod compat;

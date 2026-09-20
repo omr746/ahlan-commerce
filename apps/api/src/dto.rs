@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use catalog::{Product, ProductCreate, ProductId,ProductUpdate};
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
+ use utoipa::ToSchema;
 
-
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize,ToSchema)]
 pub struct ProductUpdateRequest {
     #[serde(default)]
     pub description: Option<String>,
@@ -18,7 +18,7 @@ impl From<ProductUpdateRequest> for ProductUpdate {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize,ToSchema)]
 pub struct ProductCreateRequest{
      pub title: String,
     pub handle: String,
@@ -67,22 +67,23 @@ fn is_valid_handle(handle: &str) -> bool {
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
-impl From<ProductCreateRequest> for ProductCreate{
-    fn from(req:ProductCreateRequest)->Self{
+impl From<&ProductCreateRequest> for ProductCreate{
+    fn from(req:&ProductCreateRequest)->Self{
         ProductCreate {
-            title: req.title,
-            handle: req.handle,
+            title: req.title.clone(),
+            handle: req.handle.clone(),
             price_cents: req.price_cents as u32,
             inventory_quantity: req.inventory_quantity as u32,
             published: req.published,
-            description:req.description
+            description:req.description.clone()
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq,ToSchema)]
 pub struct ProductResponse {
-     pub id: ProductId,
+    #[schema(value_type = String, format = "uuid")]
+    pub id: ProductId ,
     pub title: String,
     pub handle: String,
     pub description: Option<String>,
@@ -114,3 +115,28 @@ impl From<&Product> for ProductResponse {
         }
     }
 }
+
+
+#[derive(Debug, Deserialize,ToSchema)]
+pub struct CreateImportJobRequest {
+    pub input_path: Option<String>,
+}
+
+impl CreateImportJobRequest {
+    pub fn validate(&self) -> Result<String, String> {
+        let p = self.input_path.as_deref().map(str::trim).unwrap_or("");
+        if p.is_empty() {
+            return Err("input_path is required.".to_string());
+        }
+        if !p.ends_with(".json") {
+            return Err("input_path must point to a .json file.".to_string());
+        }
+        Ok(p.to_string())
+    }
+}
+
+#[derive(Debug, Serialize,ToSchema)]
+pub struct ImportJobView { pub id: Uuid, pub status: String }
+
+#[derive(Debug, Serialize,ToSchema)]
+pub struct CreateImportJobResponse { pub job: ImportJobView }

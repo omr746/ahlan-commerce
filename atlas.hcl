@@ -8,7 +8,7 @@ env "local" {
   # The desired schema, in plain SQL - not HCL. Atlas supports both; we
   # use SQL here because Chapter 04's whole stance has been "plain SQL,
   # not a DSL that generates SQL for you" (see db/schema/products.sql).
-  src = "file://db/schema/products.sql"
+  src = "file://db/schema"
 
   # The database Atlas actually manages: where `migrate apply` applies
   # pending migrations, and where Atlas keeps its own migration-history
