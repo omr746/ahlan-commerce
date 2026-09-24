@@ -117,9 +117,7 @@ pub async fn get_published_products(
         .await
         .map_err(|err| AppError::from_catalog_db(err, request_id))?;
 
-    Ok(Json(
-        products.iter().map(ProductResponse::from).collect(),
-    ))
+    Ok(Json(products.iter().map(ProductResponse::from).collect()))
 }
 
 #[utoipa::path(
