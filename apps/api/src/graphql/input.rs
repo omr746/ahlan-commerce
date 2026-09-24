@@ -22,20 +22,16 @@ impl ProductCreateInput {
         }
         if !is_valid_handle(&self.handle) {
             return Err(
-                "Product handle must be lowercase letters, numbers, and hyphens only."
-                    .to_string(),
+                "Product handle must be lowercase letters, numbers, and hyphens only.".to_string(),
             );
         }
-
 
         if self.price_cents < 0 {
             return Err("price_cents must be greater than or equal to 0.".to_string());
         }
 
         if self.inventory_quantity < 0 {
-            return Err(
-                "inventory_quantity must be greater than or equal to 0.".to_string()
-            );
+            return Err("inventory_quantity must be greater than or equal to 0.".to_string());
         }
 
         Ok(())

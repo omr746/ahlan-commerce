@@ -18,11 +18,11 @@
 
 use std::time::Duration;
 
-use cache::page::{CachedProductPage, PRODUCT_PAGE_TTL_SECONDS};
 use cache::Cache;
+use cache::page::{CachedProductPage, PRODUCT_PAGE_TTL_SECONDS};
 use catalog::Product;
 use chrono::Utc;
-use storefront::{render_product_page, ProductPageContext};
+use storefront::{ProductPageContext, render_product_page};
 use uuid::Uuid;
 
 fn redis_url() -> String {
@@ -89,7 +89,11 @@ async fn write_then_read_is_a_hit_with_the_same_html() {
     let product = sample_product(&handle);
     let html = render(&product);
     cache
-        .set_json(&key, &entry_for(&product, html.clone()), Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS))
+        .set_json(
+            &key,
+            &entry_for(&product, html.clone()),
+            Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS),
+        )
         .await;
 
     let got: Option<CachedProductPage> = cache.get_json(&key).await;
@@ -108,7 +112,11 @@ async fn invalidation_deletes_the_cached_page() {
 
     let product = sample_product(&handle);
     cache
-        .set_json(&key, &entry_for(&product, render(&product)), Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS))
+        .set_json(
+            &key,
+            &entry_for(&product, render(&product)),
+            Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS),
+        )
         .await;
     assert!(cache.get_json::<CachedProductPage>(&key).await.is_some());
 
@@ -131,7 +139,11 @@ async fn republished_product_does_not_serve_stale_html_after_invalidation() {
     // Cache a page showing 12 in stock.
     let mut product = sample_product(&handle);
     cache
-        .set_json(&key, &entry_for(&product, render(&product)), Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS))
+        .set_json(
+            &key,
+            &entry_for(&product, render(&product)),
+            Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS),
+        )
         .await;
 
     // Product changes (inventory drops to 0) and the write path invalidates.
@@ -143,15 +155,25 @@ async fn republished_product_does_not_serve_stale_html_after_invalidation() {
     // simulate that re-render and confirm the new state is what gets cached.
     let fresh_html = render(&product);
     cache
-        .set_json(&key, &entry_for(&product, fresh_html.clone()), Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS))
+        .set_json(
+            &key,
+            &entry_for(&product, fresh_html.clone()),
+            Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS),
+        )
         .await;
 
     let got = cache
         .get_json::<CachedProductPage>(&key)
         .await
         .expect("expected a hit after re-render");
-    assert!(got.html.contains("Out of stock"), "must reflect the updated inventory");
-    assert!(!got.html.contains("In stock (12 available)"), "must not serve the stale page");
+    assert!(
+        got.html.contains("Out of stock"),
+        "must reflect the updated inventory"
+    );
+    assert!(
+        !got.html.contains("In stock (12 available)"),
+        "must not serve the stale page"
+    );
 
     cache.delete(&key).await;
 }
@@ -162,7 +184,10 @@ async fn read_falls_back_safely_when_redis_is_unavailable() {
     let key = cache::keys::storefront_product_page_key("anything");
 
     let got: Option<CachedProductPage> = cache.get_json(&key).await;
-    assert_eq!(got, None, "Redis down must look like a miss so the route renders from Postgres");
+    assert_eq!(
+        got, None,
+        "Redis down must look like a miss so the route renders from Postgres"
+    );
 }
 
 #[tokio::test]
@@ -175,7 +200,11 @@ async fn write_and_delete_do_not_fail_when_redis_is_unavailable() {
     // Both must return normally -- a Redis outage cannot fail a product
     // write or a page render.
     cache
-        .set_json(&key, &entry_for(&product, render(&product)), Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS))
+        .set_json(
+            &key,
+            &entry_for(&product, render(&product)),
+            Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS),
+        )
         .await;
     cache.delete(&key).await;
 }

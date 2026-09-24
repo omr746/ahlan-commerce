@@ -1,11 +1,11 @@
 pub mod app;
+pub mod compat;
 pub mod config;
 pub mod dto;
 pub mod error;
-pub mod observability;
-pub mod routes;
-pub mod handlers;
-pub mod storefront_handler;
 pub mod graphql;
+pub mod handlers;
+pub mod observability;
 pub mod openapi;
-pub mod compat;
+pub mod routes;
+pub mod storefront_handler;

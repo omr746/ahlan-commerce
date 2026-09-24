@@ -9,7 +9,7 @@
 //! happened to fail native validation, since the mapping itself is what's
 //! under test.
 
-use api::compat::external_product::{map_external_to_native, AdapterError, ExternalProduct};
+use api::compat::external_product::{AdapterError, ExternalProduct, map_external_to_native};
 
 fn load_fixture() -> ExternalProduct {
     let raw = std::fs::read_to_string("../../fixtures/external-product.json")
@@ -27,7 +27,7 @@ fn maps_every_field_from_the_committed_fixture() {
     assert_eq!(native.handle, "coffee-mug");
     assert_eq!(native.price_cents, 2500);
     assert_eq!(native.inventory_quantity, 12);
-    assert_eq!(native.published, true);
+    assert!(native.published);
     assert_eq!(native.description, None);
 }
 
@@ -58,7 +58,7 @@ fn is_visible_false_maps_to_published_false() {
     external.is_visible = false;
 
     let native = map_external_to_native(&external).unwrap();
-    assert_eq!(native.published, false);
+    assert!(!native.published);
 }
 
 #[test]

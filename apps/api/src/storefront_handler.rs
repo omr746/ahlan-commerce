@@ -18,14 +18,14 @@
 //! operation is best-effort; a total Redis outage degrades this route to
 //! "always render from Postgres", which is exactly the pre-cache behavior.
 
+use axum::Extension;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
-use axum::Extension;
 use cache::page::{CachedProductPage, PRODUCT_PAGE_TTL_SECONDS};
 use chrono::Utc;
 use std::time::Duration;
-use storefront::{render_product_page, ProductPageContext};
+use storefront::{ProductPageContext, render_product_page};
 use tower_http::request_id::RequestId;
 
 use crate::app::AppState;
@@ -45,11 +45,7 @@ pub async fn get_product_page(
     // A miss, a Redis error, and invalid/stale-shaped JSON are all
     // indistinguishable here by design -- `get_json` already collapsed
     // them into `None` and logged which one it was with `cache_key`.
-    if let Some(cached) = state
-        .cache
-        .get_json::<CachedProductPage>(&cache_key)
-        .await
-    {
+    if let Some(cached) = state.cache.get_json::<CachedProductPage>(&cache_key).await {
         return Ok(Html(cached.html).into_response());
     }
 
@@ -85,7 +81,11 @@ pub async fn get_product_page(
     };
     state
         .cache
-        .set_json(&cache_key, &entry, Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS))
+        .set_json(
+            &cache_key,
+            &entry,
+            Duration::from_secs(PRODUCT_PAGE_TTL_SECONDS),
+        )
         .await;
 
     Ok(Html(html).into_response())

@@ -15,14 +15,12 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::app::AppState;
-use crate::handlers::{create_product, get_published_products, health, list_products, update_product,create_import_job, list_import_jobs , __path_health,
-    __path_create_product,
-    __path_get_published_products,
-    __path_list_products,
-    __path_update_product,
-    __path_create_import_job,
-    __path_list_import_jobs,};
-
+use crate::handlers::{
+    __path_create_import_job, __path_create_product, __path_get_published_products, __path_health,
+    __path_list_import_jobs, __path_list_products, __path_update_product, create_import_job,
+    create_product, get_published_products, health, list_import_jobs, list_products,
+    update_product,
+};
 
 pub const HEALTH_TAG: &str = "health";
 pub const PRODUCTS_TAG: &str = "products";

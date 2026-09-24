@@ -1,4 +1,3 @@
-
 pub fn storefront_product_page_key(handle: &str) -> String {
     format!("storefront:product-page:{handle}")
 }

@@ -1,9 +1,8 @@
-
 use std::time::Duration;
 
 use redis::AsyncCommands;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CacheError {

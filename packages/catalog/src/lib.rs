@@ -1,12 +1,12 @@
-mod clock;
-mod id;
 mod catalog;
+mod clock;
 mod error;
+mod id;
 mod import_job;
 pub mod postgres;
+pub use catalog::{Catalog, Product, ProductCreate, ProductUpdate};
 pub use clock::{Clock, FixedClock, SystemClock};
-pub use id::{FixedIdGenerator, IdGenerator, ProductId, UuidV7Generator};
-pub use catalog::{Catalog, Product, ProductCreate,ProductUpdate};
 pub use error::CatalogError;
-pub use postgres::PgCatalog;
+pub use id::{FixedIdGenerator, IdGenerator, ProductId, UuidV7Generator};
 pub use import_job::ImportJob;
+pub use postgres::PgCatalog;

@@ -11,16 +11,11 @@ pub struct Config {
 }
 
 impl Config {
-    
     pub fn new() -> Result<Self, String> {
         dotenvy::dotenv().ok();
         let api_bind_addr = required_env(API_BIND_ADDR)?
             .parse::<SocketAddr>()
-            .map_err(|_| {
-                format!(
-                    "Invalid value for {API_BIND_ADDR}: expected host:port"
-                )
-            })?;
+            .map_err(|_| format!("Invalid value for {API_BIND_ADDR}: expected host:port"))?;
 
         let redis_url = required_env(ENV_REDIS_URL)?;
         let database_url = required_env(ENV_DATABASE_URL)?;
@@ -38,6 +33,5 @@ impl Config {
 }
 
 fn required_env(name: &str) -> Result<String, String> {
-    env::var(name)
-        .map_err(|_| format!("Missing required environment variable: {name}"))
+    env::var(name).map_err(|_| format!("Missing required environment variable: {name}"))
 }

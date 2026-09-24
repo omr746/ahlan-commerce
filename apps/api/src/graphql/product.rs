@@ -1,7 +1,5 @@
-use async_graphql::SimpleObject;
 use crate::graphql::scalar::GraphQLDateTime;
-
-
+use async_graphql::SimpleObject;
 
 #[derive(SimpleObject)]
 #[graphql(rename_fields = "camelCase")]

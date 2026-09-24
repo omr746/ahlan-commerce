@@ -10,11 +10,11 @@ pub enum CatalogDbError {
 
     #[error("product not found")]
     NotFound,
-    #[error("database pool error: {0}")] 
+    #[error("database pool error: {0}")]
     PoolGet(#[from] deadpool_postgres::PoolError),
 
     #[error("duplicate product handle")]
     DuplicateHandle,
     #[error("invalid database configuration: {0}")]
-      InvalidDatabaseUrl(String),
+    InvalidDatabaseUrl(String),
 }

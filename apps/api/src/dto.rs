@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use catalog::{Product, ProductCreate, ProductId,ProductUpdate};
+use catalog::{Product, ProductCreate, ProductId, ProductUpdate};
 use chrono::{DateTime, Utc};
+use utoipa::ToSchema;
 use uuid::Uuid;
- use utoipa::ToSchema;
 
-#[derive(Debug, Deserialize,ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct ProductUpdateRequest {
     #[serde(default)]
     pub description: Option<String>,
@@ -14,7 +14,10 @@ pub struct ProductUpdateRequest {
 
 impl From<ProductUpdateRequest> for ProductUpdate {
     fn from(req: ProductUpdateRequest) -> Self {
-        ProductUpdate { description: req.description, published: req.published }
+        ProductUpdate {
+            description: req.description,
+            published: req.published,
+        }
     }
 }
 
@@ -30,7 +33,6 @@ pub struct ProductCreateRequest {
 }
 
 impl ProductCreateRequest {
- 
     pub fn validate(&self) -> Result<(), String> {
         if self.title.trim().is_empty() {
             return Err("Product title is required.".to_string());
@@ -47,7 +49,6 @@ impl ProductCreateRequest {
             return Err("price_cents must be greater than or equal to 0.".to_string());
         }
         if self.price_cents > i32::MAX as i64 {
-            
             return Err("price_cents is too large.".to_string());
         }
         if self.inventory_quantity < 0 {
@@ -67,23 +68,23 @@ fn is_valid_handle(handle: &str) -> bool {
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
-impl From<&ProductCreateRequest> for ProductCreate{
-    fn from(req:&ProductCreateRequest)->Self{
+impl From<&ProductCreateRequest> for ProductCreate {
+    fn from(req: &ProductCreateRequest) -> Self {
         ProductCreate {
             title: req.title.clone(),
             handle: req.handle.clone(),
             price_cents: req.price_cents as u32,
             inventory_quantity: req.inventory_quantity as u32,
             published: req.published,
-            description:req.description.clone()
+            description: req.description.clone(),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq,ToSchema)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, ToSchema)]
 pub struct ProductResponse {
     #[schema(value_type = String, format = "uuid")]
-    pub id: ProductId ,
+    pub id: ProductId,
     pub title: String,
     pub handle: String,
     pub description: Option<String>,
@@ -94,8 +95,6 @@ pub struct ProductResponse {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
-    
-
 
 impl From<&Product> for ProductResponse {
     fn from(p: &Product) -> Self {
@@ -106,18 +105,15 @@ impl From<&Product> for ProductResponse {
             price_cents: p.price_cents,
             inventory_quantity: p.inventory_quantity,
             published: p.published,
-            created_at:p.created_at,
-            updated_at:p.updated_at,
-            description:p.description.clone(),
-            published_at:p.published_at
-
-           
+            created_at: p.created_at,
+            updated_at: p.updated_at,
+            description: p.description.clone(),
+            published_at: p.published_at,
         }
     }
 }
 
-
-#[derive(Debug, Deserialize,ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateImportJobRequest {
     pub input_path: Option<String>,
 }
@@ -135,8 +131,13 @@ impl CreateImportJobRequest {
     }
 }
 
-#[derive(Debug, Serialize,ToSchema)]
-pub struct ImportJobView { pub id: Uuid, pub status: String }
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ImportJobView {
+    pub id: Uuid,
+    pub status: String,
+}
 
-#[derive(Debug, Serialize,ToSchema)]
-pub struct CreateImportJobResponse { pub job: ImportJobView }
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CreateImportJobResponse {
+    pub job: ImportJobView,
+}

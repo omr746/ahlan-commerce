@@ -1,17 +1,13 @@
-
+use crate::error::CatalogDbError;
+use catalog::{Clock, IdGenerator};
 use catalog::{Product, ProductCreate, ProductUpdate};
 use chrono::{FixedOffset, Utc};
 use deadpool_postgres::Pool;
 use uuid::Uuid;
-use catalog::{Clock, IdGenerator};
-use crate::error::CatalogDbError;
 
 use catalog_db_queries::queries::products::{
-    create_product,
-    list_products,
-    list_published_products,
+    create_product, get_published_product_by_handle, list_products, list_published_products,
     update_product_publication,
-    get_published_product_by_handle
 };
 
 #[derive(Clone)]
@@ -31,17 +27,15 @@ impl PgCatalog {
     pub async fn create_product(
         &self,
         input: ProductCreate,
-        ids:  &dyn IdGenerator,
+        ids: &dyn IdGenerator,
         clock: &dyn Clock,
     ) -> Result<Product, CatalogDbError> {
         let client = self.pool.get().await?;
-               let id=ids.new_id();
-      let now=clock.now();
+        let id = ids.new_id();
+        let now = clock.now();
         // Domain/application layer uses UTC.
         // Cornucopia generated code uses FixedOffset.
-        let now_fixed = now.with_timezone(
-            &FixedOffset::east_opt(0).unwrap(),
-        );
+        let now_fixed = now.with_timezone(&FixedOffset::east_opt(0).unwrap());
 
         // Nullable publication timestamp.
         //
@@ -92,17 +86,17 @@ impl PgCatalog {
             )
             .one()
             .await;
-          let row = match result {
-        Ok(row) => row,
+        let row = match result {
+            Ok(row) => row,
 
-        Err(err) => {
-            if err.code() == Some(&tokio_postgres::error::SqlState::UNIQUE_VIOLATION) {
-                return Err(CatalogDbError::DuplicateHandle);
+            Err(err) => {
+                if err.code() == Some(&tokio_postgres::error::SqlState::UNIQUE_VIOLATION) {
+                    return Err(CatalogDbError::DuplicateHandle);
+                }
+
+                return Err(CatalogDbError::Database(err));
             }
-
-            return Err(CatalogDbError::Database(err));
-        }
-    };
+        };
 
         Ok(Product {
             id: row.id,
@@ -114,9 +108,7 @@ impl PgCatalog {
             published: row.published,
 
             // FixedOffset -> UTC
-            published_at: row
-                .published_at
-                .map(|dt| dt.with_timezone(&Utc)),
+            published_at: row.published_at.map(|dt| dt.with_timezone(&Utc)),
 
             created_at: row.created_at.with_timezone(&Utc),
             updated_at: row.updated_at.with_timezone(&Utc),
@@ -127,9 +119,7 @@ impl PgCatalog {
     // LIST ALL PRODUCTS
     // ============================================================
 
-    pub async fn list_products(
-        &self,
-    ) -> Result<Vec<Product>, CatalogDbError> {
+    pub async fn list_products(&self) -> Result<Vec<Product>, CatalogDbError> {
         let client = self.pool.get().await?;
 
         let rows = list_products::list_products()
@@ -138,18 +128,14 @@ impl PgCatalog {
             .await
             .map_err(CatalogDbError::from)?;
 
-        rows.into_iter()
-            .map(product_from_list)
-            .collect()
+        rows.into_iter().map(product_from_list).collect()
     }
 
     // ============================================================
     // LIST PUBLISHED PRODUCTS
     // ============================================================
 
-    pub async fn list_published_products(
-        &self,
-    ) -> Result<Vec<Product>, CatalogDbError> {
+    pub async fn list_published_products(&self) -> Result<Vec<Product>, CatalogDbError> {
         let client = self.pool.get().await?;
 
         let rows = list_published_products::list_published_products()
@@ -158,9 +144,7 @@ impl PgCatalog {
             .await
             .map_err(CatalogDbError::from)?;
 
-        rows.into_iter()
-            .map(product_from_published_list)
-            .collect()
+        rows.into_iter().map(product_from_published_list).collect()
     }
 
     // ============================================================
@@ -171,14 +155,12 @@ impl PgCatalog {
         &self,
         id: Uuid,
         input: ProductUpdate,
-        clock:&dyn Clock,
+        clock: &dyn Clock,
     ) -> Result<Product, CatalogDbError> {
         let client = self.pool.get().await?;
-          let now=clock.now();
+        let now = clock.now();
         // UTC -> FixedOffset
-        let now_fixed = now.with_timezone(
-            &FixedOffset::east_opt(0).unwrap(),
-        );
+        let now_fixed = now.with_timezone(&FixedOffset::east_opt(0).unwrap());
 
         // Keep NULL when the product is unpublished.
         let published_at = if input.published {
@@ -188,13 +170,7 @@ impl PgCatalog {
         };
 
         let row = update_product_publication::update_product_publication()
-            .bind(
-                  &client,
-        &input.published,
-        &published_at,
-        &now_fixed,
-        &id,
-            )
+            .bind(&client, &input.published, &published_at, &now_fixed, &id)
             .one()
             .await
             .map_err(CatalogDbError::from)?;
@@ -209,48 +185,43 @@ impl PgCatalog {
             published: row.published,
 
             // FixedOffset -> UTC
-            published_at: row
-                .published_at
-                .map(|dt| dt.with_timezone(&Utc)),
+            published_at: row.published_at.map(|dt| dt.with_timezone(&Utc)),
 
             created_at: row.created_at.with_timezone(&Utc),
             updated_at: row.updated_at.with_timezone(&Utc),
         })
     }
     pub async fn get_published_product_by_handle(
-    &self,
-    handle: &str,
-) -> Result<Option<Product>, CatalogDbError> {
-    let client = self.pool.get().await?;
-    let row = get_published_product_by_handle::get_published_product_by_handle()
-        .bind(&client, &handle)
-        .opt()
-        .await
-        .map_err(CatalogDbError::from)?;
+        &self,
+        handle: &str,
+    ) -> Result<Option<Product>, CatalogDbError> {
+        let client = self.pool.get().await?;
+        let row = get_published_product_by_handle::get_published_product_by_handle()
+            .bind(&client, &handle)
+            .opt()
+            .await
+            .map_err(CatalogDbError::from)?;
 
-    Ok(row.map(|r| Product {
-        id: r.id,
-        title: r.title,
-        handle: r.handle,
-        description: r.description,
-        price_cents: r.price_cents as u32,
-        inventory_quantity: r.inventory_quantity as u32,
-        published: r.published,
-        published_at: r.published_at.map(|dt| dt.with_timezone(&Utc)),
-        created_at: r.created_at.with_timezone(&Utc),
-        updated_at: r.updated_at.with_timezone(&Utc),
-    }))
-}
-
+        Ok(row.map(|r| Product {
+            id: r.id,
+            title: r.title,
+            handle: r.handle,
+            description: r.description,
+            price_cents: r.price_cents as u32,
+            inventory_quantity: r.inventory_quantity as u32,
+            published: r.published,
+            published_at: r.published_at.map(|dt| dt.with_timezone(&Utc)),
+            created_at: r.created_at.with_timezone(&Utc),
+            updated_at: r.updated_at.with_timezone(&Utc),
+        }))
+    }
 }
 
 // ================================================================
 // MAPPERS
 // ================================================================
 
-fn product_from_list(
-    row: list_products::ListProducts,
-) -> Result<Product, CatalogDbError> {
+fn product_from_list(row: list_products::ListProducts) -> Result<Product, CatalogDbError> {
     Ok(Product {
         id: row.id,
         title: row.title,
@@ -261,9 +232,7 @@ fn product_from_list(
         published: row.published,
 
         // FixedOffset -> UTC
-        published_at: row
-            .published_at
-            .map(|dt| dt.with_timezone(&Utc)),
+        published_at: row.published_at.map(|dt| dt.with_timezone(&Utc)),
 
         created_at: row.created_at.with_timezone(&Utc),
         updated_at: row.updated_at.with_timezone(&Utc),
@@ -283,9 +252,7 @@ fn product_from_published_list(
         published: row.published,
 
         // FixedOffset -> UTC
-        published_at: row
-            .published_at
-            .map(|dt| dt.with_timezone(&Utc)),
+        published_at: row.published_at.map(|dt| dt.with_timezone(&Utc)),
 
         created_at: row.created_at.with_timezone(&Utc),
         updated_at: row.updated_at.with_timezone(&Utc),

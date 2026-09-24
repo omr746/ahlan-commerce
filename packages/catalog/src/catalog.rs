@@ -1,20 +1,20 @@
 use chrono::{DateTime, Utc};
 
 use crate::clock::Clock;
-use crate::id::{IdGenerator, ProductId};
 use crate::error::CatalogError;
-#[derive(Debug,Clone)]
-pub struct Product{
-    pub id:ProductId,
-    pub title:String,
-    pub handle:String,
-    pub price_cents:u32,
+use crate::id::{IdGenerator, ProductId};
+#[derive(Debug, Clone)]
+pub struct Product {
+    pub id: ProductId,
+    pub title: String,
+    pub handle: String,
+    pub price_cents: u32,
     pub description: Option<String>,
-    pub inventory_quantity:u32,
-    pub published:bool,
+    pub inventory_quantity: u32,
+    pub published: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-     pub published_at: Option<DateTime<Utc>>,
+    pub published_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug)]
@@ -23,64 +23,74 @@ pub struct ProductUpdate {
     pub published: bool,
 }
 
-#[derive(Debug,Clone)]
-pub struct ProductCreate{
-    pub title:String,
-    pub handle:String,
-    pub price_cents:u32,
-    pub inventory_quantity:u32,
-    pub published:bool,
-     pub description: Option<String>,
-
-
+#[derive(Debug, Clone)]
+pub struct ProductCreate {
+    pub title: String,
+    pub handle: String,
+    pub price_cents: u32,
+    pub inventory_quantity: u32,
+    pub published: bool,
+    pub description: Option<String>,
 }
 #[derive(Debug)]
-pub struct Catalog{
-    pub products:Vec<Product>
+pub struct Catalog {
+    pub products: Vec<Product>,
 }
-impl Catalog{
-     pub fn new() -> Self {
+impl Default for Catalog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Catalog {
+    pub fn new() -> Self {
         Self {
             products: Vec::new(),
         }
     }
-    pub fn create_product(&mut self, input:ProductCreate,id:&dyn IdGenerator,clock:&dyn Clock)
-    ->Result<&Product,CatalogError>{
+    pub fn create_product(
+        &mut self,
+        input: ProductCreate,
+        id: &dyn IdGenerator,
+        clock: &dyn Clock,
+    ) -> Result<&Product, CatalogError> {
         if self.products.iter().any(|p| p.handle == input.handle) {
             return Err(CatalogError::DuplicateHandle(input.handle));
         }
-          let now = clock.now();
-           let published_at = if input.published { Some(now) } else { None };
-      
-        let product=Product{
-            id:id.new_id(),
-            title:input.title,
-            handle:input.handle,
-            price_cents:input.price_cents,
-            description:input.description,
-            inventory_quantity:input.inventory_quantity,
-            published:input.published,
+        let now = clock.now();
+        let published_at = if input.published { Some(now) } else { None };
+
+        let product = Product {
+            id: id.new_id(),
+            title: input.title,
+            handle: input.handle,
+            price_cents: input.price_cents,
+            description: input.description,
+            inventory_quantity: input.inventory_quantity,
+            published: input.published,
             published_at,
             created_at: now,
             updated_at: now,
-
         };
         self.products.push(product);
         Ok(self.products.last().unwrap())
     }
-    pub fn list_products(&self)->&Vec<Product>{
-       &self.products
+    pub fn list_products(&self) -> &Vec<Product> {
+        &self.products
     }
-    pub fn get_product(&self,id:ProductId)-> Result<&Product,CatalogError>{
-      self.products.iter().find(|p|p.id==id).ok_or(CatalogError::NotFound(id))
+    pub fn get_product(&self, id: ProductId) -> Result<&Product, CatalogError> {
+        self.products
+            .iter()
+            .find(|p| p.id == id)
+            .ok_or(CatalogError::NotFound(id))
     }
 }
 
 #[cfg(test)]
-mod tests{
-     use super::*;
-    use crate::id::FixedIdGenerator;
+mod tests {
+    use super::*;
     use crate::clock::FixedClock;
+    use crate::id::FixedIdGenerator;
     use chrono::TimeZone;
     use uuid::Uuid;
 
@@ -90,43 +100,41 @@ mod tests{
         (FixedIdGenerator(id), FixedClock(ts))
     }
     #[test]
-    fn create_product_test(){
+    fn create_product_test() {
         let (ids, clock) = fixture();
-        let product=ProductCreate{
-            title:"Test Product".to_string(),
-            handle:"test-product".to_string(),
-            price_cents:1000,
-            description:None,
-            inventory_quantity:10,
-            published:true
+        let product = ProductCreate {
+            title: "Test Product".to_string(),
+            handle: "test-product".to_string(),
+            price_cents: 1000,
+            description: None,
+            inventory_quantity: 10,
+            published: true,
         };
-        let mut catalog=Catalog::new();
-        let created_product=catalog.create_product(product,&ids,&clock).unwrap();
-        assert_eq!(created_product.title,"Test Product");
-        assert_eq!(created_product.handle,"test-product");
-        assert_eq!(created_product.price_cents,1000);
-        assert_eq!(created_product.inventory_quantity,10);
-        assert_eq!(created_product.published,true);
-
+        let mut catalog = Catalog::new();
+        let created_product = catalog.create_product(product, &ids, &clock).unwrap();
+        assert_eq!(created_product.title, "Test Product");
+        assert_eq!(created_product.handle, "test-product");
+        assert_eq!(created_product.price_cents, 1000);
+        assert_eq!(created_product.inventory_quantity, 10);
+        assert!(created_product.published);
     }
     #[test]
-    fn list_products_test(){    
-         let (ids, clock) = fixture();
-        let product=ProductCreate{
-            title:"Test Product".to_string(),
-            handle:"test-product".to_string(),
-            price_cents:1000,
-            inventory_quantity:10,
-            description:None,
-            published:true
+    fn list_products_test() {
+        let (ids, clock) = fixture();
+        let product = ProductCreate {
+            title: "Test Product".to_string(),
+            handle: "test-product".to_string(),
+            price_cents: 1000,
+            inventory_quantity: 10,
+            description: None,
+            published: true,
         };
-        let mut catalog=Catalog{products:Vec::new()};
-        let _=catalog.create_product(product,&ids,&clock);
-        let products=catalog.list_products();
-        assert_eq!(products.len(),1);
-        assert_eq!(products[0].title,"Test Product");
+        let mut catalog = Catalog {
+            products: Vec::new(),
+        };
+        let _ = catalog.create_product(product, &ids, &clock);
+        let products = catalog.list_products();
+        assert_eq!(products.len(), 1);
+        assert_eq!(products[0].title, "Test Product");
     }
-
-
 }
-

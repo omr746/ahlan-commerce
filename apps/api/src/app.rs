@@ -1,28 +1,28 @@
-use std::sync::Arc;
+use crate::config::Config;
+use crate::graphql::schema::create_schema;
+use crate::observability;
+use crate::openapi::{ApiDoc, documented_router};
+use crate::routes;
 use axum::{
-    routing::{get, post},
     Router,
+    routing::{get, post},
 };
 use cache::Cache;
-use catalog_db::PgImportJobs; 
 use catalog::{Clock, IdGenerator, SystemClock, UuidV7Generator};
-use catalog_db::{create_pool, CatalogDbError, PgCatalog};
+use catalog_db::PgImportJobs;
+use catalog_db::{CatalogDbError, PgCatalog, create_pool};
+use std::sync::Arc;
 use tower_http::cors::CorsLayer;
-use crate::config::Config;
 use utoipa::OpenApi;
-use crate::observability;
-use crate::routes;
-use crate::graphql::schema::{create_schema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
-use crate::openapi::{documented_router, ApiDoc};
 #[derive(Clone)]
 pub struct AppState {
     pub catalog: PgCatalog,
     pub import_jobs: PgImportJobs,
-     pub cache: Cache,
+    pub cache: Cache,
     pub config: Arc<Config>,
-        
+
     pub ids: Arc<dyn IdGenerator>,
     pub clock: Arc<dyn Clock>,
 }
@@ -34,7 +34,7 @@ impl AppState {
         let catalog = PgCatalog::new(pool.clone());
         let import_jobs = PgImportJobs::new(pool.clone());
 
-          let cache = Cache::new(&config.redis_url)
+        let cache = Cache::new(&config.redis_url)
             .expect("REDIS_URL is not a valid redis connection string");
         Ok(Self {
             catalog,
@@ -48,8 +48,8 @@ impl AppState {
 }
 
 pub fn create_router(state: AppState) -> Router {
-    let schema =create_schema(state.clone());
-     let (rest_router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+    let schema = create_schema(state.clone());
+    let (rest_router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .merge(documented_router())
         .split_for_parts();
 
@@ -89,13 +89,12 @@ mod tests {
     // ============================================================
 
     async fn test_state() -> AppState {
-        let url = std::env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| {
-                "postgres://postgres:132456@127.0.0.1:5432/ahlan-commerce"
-                    .to_string()
-            });
+        let url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://postgres:132456@127.0.0.1:5432/ahlan-commerce".to_string()
+        });
 
-        let pool = create_pool(&url).await
+        let pool = create_pool(&url)
+            .await
             .expect("create PostgreSQL pool for tests");
 
         let catalog = PgCatalog::new(pool.clone());
@@ -106,7 +105,7 @@ mod tests {
             import_jobs,
             cache: Cache::new("redis://127.0.0.1:6379").expect("failed to create cache"),
             config: Arc::new(Config {
-                api_bind_addr:"0.0.0.0:3000".parse().unwrap(),
+                api_bind_addr: "0.0.0.0:3000".parse().unwrap(),
                 redis_url: "redis://127.0.0.1:6379".into(),
                 database_url: url,
             }),
@@ -123,15 +122,8 @@ mod tests {
         format!("test-product-{}", Uuid::new_v4())
     }
 
-    async fn body_json<T: serde::de::DeserializeOwned>(
-        response: axum::response::Response,
-    ) -> T {
-        let bytes = response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
+    async fn body_json<T: serde::de::DeserializeOwned>(response: axum::response::Response) -> T {
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
 
         serde_json::from_slice(&bytes).unwrap()
     }
@@ -210,8 +202,7 @@ mod tests {
 
         assert_eq!(list_response.status(), StatusCode::OK);
 
-        let products: Vec<ProductResponse> =
-            body_json(list_response).await;
+        let products: Vec<ProductResponse> = body_json(list_response).await;
 
         assert!(
             products
@@ -237,27 +228,15 @@ mod tests {
             "published": true
         });
 
-        let response = app
-            .oneshot(create_request(body))
-            .await
-            .unwrap();
+        let response = app.oneshot(create_request(body)).await.unwrap();
 
-        assert_eq!(
-            response.status(),
-            StatusCode::BAD_REQUEST
-        );
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-        let envelope: ErrorEnvelope =
-            body_json(response).await;
+        let envelope: ErrorEnvelope = body_json(response).await;
 
-        assert_eq!(
-            envelope.error.code,
-            "validation_failed"
-        );
+        assert_eq!(envelope.error.code, "validation_failed");
 
-        assert!(
-            !envelope.error.request_id.is_nil()
-        );
+        assert!(!envelope.error.request_id.is_nil());
     }
 
     // ============================================================
@@ -287,101 +266,88 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(
-            first.status(),
-            StatusCode::CREATED
-        );
+        assert_eq!(first.status(), StatusCode::CREATED);
 
         // Second insert with same handle
-        let second = app
-            .oneshot(create_request(make_body()))
-            .await
-            .unwrap();
+        let second = app.oneshot(create_request(make_body())).await.unwrap();
 
-        assert_eq!(
-            second.status(),
-            StatusCode::CONFLICT
-        );
+        assert_eq!(second.status(), StatusCode::CONFLICT);
 
-        let envelope: ErrorEnvelope =
-            body_json(second).await;
+        let envelope: ErrorEnvelope = body_json(second).await;
 
-        assert_eq!(
-            envelope.error.code,
-            "duplicate_product_handle"
-        );
+        assert_eq!(envelope.error.code, "duplicate_product_handle");
     }
 }
 
-    // ============================================================
-    // GET PRODUCT - NOT FOUND
-    // ============================================================
+// ============================================================
+// GET PRODUCT - NOT FOUND
+// ============================================================
 
-    // #[tokio::test]
-    // async fn missing_product_returns_404() {
-    //     let app = create_router(test_state().await);
+// #[tokio::test]
+// async fn missing_product_returns_404() {
+//     let app = create_router(test_state().await);
 
-    //     let missing_id = Uuid::new_v4();
+//     let missing_id = Uuid::new_v4();
 
-    //     let response = app
-    //         .oneshot(
-    //             Request::builder()
-    //                 .uri(routes::product_url(missing_id))
-    //                 .body(Body::empty())
-    //                 .unwrap(),
-    //         )
-    //         .await
-    //         .unwrap();
+//     let response = app
+//         .oneshot(
+//             Request::builder()
+//                 .uri(routes::product_url(missing_id))
+//                 .body(Body::empty())
+//                 .unwrap(),
+//         )
+//         .await
+//         .unwrap();
 
-    //     assert_eq!(
-    //         response.status(),
-    //         StatusCode::NOT_FOUND
-    //     );
+//     assert_eq!(
+//         response.status(),
+//         StatusCode::NOT_FOUND
+//     );
 
-    //     let envelope: ErrorEnvelope =
-    //         body_json(response).await;
+//     let envelope: ErrorEnvelope =
+//         body_json(response).await;
 
-    //     assert_eq!(
-    //         envelope.error.code,
-    //         "not_found"
-    //     );
-    // }
+//     assert_eq!(
+//         envelope.error.code,
+//         "not_found"
+//     );
+// }
 
-    // ============================================================
-    // MALFORMED UUID
-    // ============================================================
+// ============================================================
+// MALFORMED UUID
+// ============================================================
 
-    // #[tokio::test]
-    // async fn malformed_id_returns_validation_failed_not_500() {
-    //     let app = create_router(test_state().await);
+// #[tokio::test]
+// async fn malformed_id_returns_validation_failed_not_500() {
+//     let app = create_router(test_state().await);
 
-    //     let response = app
-    //         .oneshot(
-    //             Request::builder()
-    //                 .uri(routes::product_url("not-a-uuid"))
-    //                 .body(Body::empty())
-    //                 .unwrap(),
-    //         )
-    //         .await
-    //         .unwrap();
+//     let response = app
+//         .oneshot(
+//             Request::builder()
+//                 .uri(routes::product_url("not-a-uuid"))
+//                 .body(Body::empty())
+//                 .unwrap(),
+//         )
+//         .await
+//         .unwrap();
 
-    //     assert_eq!(
-    //         response.status(),
-    //         StatusCode::BAD_REQUEST
-    //     );
+//     assert_eq!(
+//         response.status(),
+//         StatusCode::BAD_REQUEST
+//     );
 
-    //     let envelope: ErrorEnvelope =
-    //         body_json(response).await;
+//     let envelope: ErrorEnvelope =
+//         body_json(response).await;
 
-    //     assert_eq!(
-    //         envelope.error.code,
-    //         "validation_failed"
-    //     );
-    // }
+//     assert_eq!(
+//         envelope.error.code,
+//         "validation_failed"
+//     );
+// }
 
-    // ============================================================
-    // REQUEST ID
-    // ============================================================
+// ============================================================
+// REQUEST ID
+// ============================================================
 
 //     #[tokio::test]
 //     async fn error_response_request_id_matches_propagated_header() {

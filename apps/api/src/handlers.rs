@@ -1,19 +1,22 @@
-
-use axum::{
-     extract::{Extension,Json, Path, State,Query}, http::StatusCode
-};
-use serde::{Deserialize, Serialize};
 use crate::app::AppState;
-use catalog::{ProductCreate,ProductId};
-use tower_http::request_id::RequestId;
-use crate::error::{AppError,ErrorEnvelope};
-use crate::dto::{ProductCreateRequest, ProductResponse,ProductUpdateRequest,ImportJobView,CreateImportJobRequest,CreateImportJobResponse};
-use crate::observability::{ current_request_id};
-use utoipa::ToSchema;
+use crate::dto::{
+    CreateImportJobRequest, CreateImportJobResponse, ImportJobView, ProductCreateRequest,
+    ProductResponse, ProductUpdateRequest,
+};
+use crate::error::{AppError, ErrorEnvelope};
+use crate::observability::current_request_id;
 use crate::openapi::{HEALTH_TAG, PRODUCTS_TAG};
-#[derive(Serialize,ToSchema)]
-pub struct HealthResponse{
-    status:&'static str
+use axum::{
+    extract::{Extension, Json, Path, Query, State},
+    http::StatusCode,
+};
+use catalog::{ProductCreate, ProductId};
+use serde::{Deserialize, Serialize};
+use tower_http::request_id::RequestId;
+use utoipa::ToSchema;
+#[derive(Serialize, ToSchema)]
+pub struct HealthResponse {
+    status: &'static str,
 }
 #[utoipa::path(
     get,
@@ -23,11 +26,8 @@ pub struct HealthResponse{
         (status = 200, description = "Service is up", body = HealthResponse)
     )
 )]
-pub async  fn health()->Json<HealthResponse>{
-    Json(HealthResponse{
-    status:"ok"
-    }
-    )
+pub async fn health() -> Json<HealthResponse> {
+    Json(HealthResponse { status: "ok" })
 }
 
 #[utoipa::path(
@@ -42,30 +42,35 @@ pub async  fn health()->Json<HealthResponse>{
     )
 )]
 pub async fn create_product(
-    State(state):State<AppState>,
-    Extension(raw_request_id):Extension<RequestId>,
-    Json(input):Json<ProductCreateRequest>
-)-> Result<(StatusCode,Json<ProductResponse>),AppError>
-{
-    let request_id=current_request_id(&raw_request_id);
-     input
+    State(state): State<AppState>,
+    Extension(raw_request_id): Extension<RequestId>,
+    Json(input): Json<ProductCreateRequest>,
+) -> Result<(StatusCode, Json<ProductResponse>), AppError> {
+    let request_id = current_request_id(&raw_request_id);
+    input
         .validate()
         .map_err(|message| AppError::validation(message, request_id))?;
-   
-    let product=state.catalog
-    .create_product(ProductCreate::from(&input), state.ids.as_ref(), state.clock.as_ref())
-    .await
-    .map_err(|err|AppError::from_catalog_db(err, request_id))?;
-     state.cache
-    .delete(&cache::keys::storefront_product_page_key(&product.handle))
-    .await;
-     tracing::info!(
+
+    let product = state
+        .catalog
+        .create_product(
+            ProductCreate::from(&input),
+            state.ids.as_ref(),
+            state.clock.as_ref(),
+        )
+        .await
+        .map_err(|err| AppError::from_catalog_db(err, request_id))?;
+    state
+        .cache
+        .delete(&cache::keys::storefront_product_page_key(&product.handle))
+        .await;
+    tracing::info!(
         request_id = %request_id,
         product_id = %product.id,
         product_handle = %product.handle,
         "product created"
     );
-    Ok((StatusCode::CREATED,Json(ProductResponse::from(&product))))
+    Ok((StatusCode::CREATED, Json(ProductResponse::from(&product))))
 }
 #[utoipa::path(
     get,
@@ -77,16 +82,19 @@ pub async fn create_product(
     )
 )]
 pub async fn list_products(
-    State(state):State<AppState>,
-    Extension(raw_request_id): Extension<RequestId>
-)-> Result<Json<Vec<ProductResponse>>, AppError>{
-     let request_id = current_request_id(&raw_request_id);
+    State(state): State<AppState>,
+    Extension(raw_request_id): Extension<RequestId>,
+) -> Result<Json<Vec<ProductResponse>>, AppError> {
+    let request_id = current_request_id(&raw_request_id);
 
-let products=state.catalog.list_products().await.map_err(|err| AppError::from_catalog_db(err, request_id))?;
+    let products = state
+        .catalog
+        .list_products()
+        .await
+        .map_err(|err| AppError::from_catalog_db(err, request_id))?;
 
     Ok(Json(products.iter().map(ProductResponse::from).collect()))
 }
-
 
 #[utoipa::path(
     get,
@@ -98,19 +106,20 @@ let products=state.catalog.list_products().await.map_err(|err| AppError::from_ca
     )
 )]
 pub async fn get_published_products(
- State(state):State<AppState>,
- Extension(raw_request_id): Extension<RequestId>,
+    State(state): State<AppState>,
+    Extension(raw_request_id): Extension<RequestId>,
+) -> Result<Json<Vec<ProductResponse>>, AppError> {
+    let request_id = current_request_id(&raw_request_id);
 
+    let products = state
+        .catalog
+        .list_published_products()
+        .await
+        .map_err(|err| AppError::from_catalog_db(err, request_id))?;
 
-)-> Result<Json<Vec<ProductResponse>>,AppError>{
-let request_id=current_request_id(&raw_request_id);
- 
-
-let products=state.catalog.list_published_products()
-.await.map_err(|err|AppError::from_catalog_db(err, request_id))?;
-
-Ok(Json(products.iter().map(|p|ProductResponse::from(p)).collect()))
-
+    Ok(Json(
+        products.iter().map(ProductResponse::from).collect(),
+    ))
 }
 
 #[utoipa::path(
@@ -135,18 +144,19 @@ pub async fn update_product(
 ) -> Result<Json<ProductResponse>, AppError> {
     let request_id = current_request_id(&raw_request_id);
 
-    let product_id: ProductId = id
-        .parse()
-        .map_err(|_| AppError::validation(format!("'{id}' is not a valid product id."), request_id))?;
+    let product_id: ProductId = id.parse().map_err(|_| {
+        AppError::validation(format!("'{id}' is not a valid product id."), request_id)
+    })?;
 
     let product = state
         .catalog
         .update_product_publication(product_id, input.into(), state.clock.as_ref())
         .await
         .map_err(|err| AppError::from_catalog_db(err, request_id))?;
-state.cache
-    .delete(&cache::keys::storefront_product_page_key(&product.handle))
-    .await;
+    state
+        .cache
+        .delete(&cache::keys::storefront_product_page_key(&product.handle))
+        .await;
     tracing::info!(
         request_id = %request_id,
         product_id = %product.id,
@@ -157,9 +167,9 @@ state.cache
 
     Ok(Json(ProductResponse::from(&product)))
 }
- use crate::openapi::IMPORT_JOBS_TAG;
+use crate::openapi::IMPORT_JOBS_TAG;
 
- #[utoipa::path(
+#[utoipa::path(
     post,
     path = "/api/import-jobs",
     tag = IMPORT_JOBS_TAG,
@@ -188,9 +198,15 @@ pub async fn create_import_job(
 
     tracing::info!(request_id = %request_id, job_id = %job.id, status = %job.status, "import job enqueued");
 
-    Ok((StatusCode::ACCEPTED, Json(CreateImportJobResponse {
-        job: ImportJobView { id: job.id, status: job.status },
-    })))
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(CreateImportJobResponse {
+            job: ImportJobView {
+                id: job.id,
+                status: job.status,
+            },
+        }),
+    ))
 }
 #[utoipa::path(
     get,
@@ -213,9 +229,19 @@ pub async fn list_import_jobs(
 ) -> Result<Json<Vec<ImportJobView>>, AppError> {
     let request_id = current_request_id(&raw_request_id);
     let status = q.status.as_deref().unwrap_or("failed"); // sensible default for "failed jobs are visible"
-    let jobs = state.import_jobs.list_by_status(status).await
+    let jobs = state
+        .import_jobs
+        .list_by_status(status)
+        .await
         .map_err(|err| AppError::from_catalog_db(err, request_id))?;
-    Ok(Json(jobs.into_iter().map(|j| ImportJobView { id: j.id, status: j.status }).collect()))
+    Ok(Json(
+        jobs.into_iter()
+            .map(|j| ImportJobView {
+                id: j.id,
+                status: j.status,
+            })
+            .collect(),
+    ))
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

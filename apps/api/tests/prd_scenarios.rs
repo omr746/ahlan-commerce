@@ -9,7 +9,7 @@
 //! `TEST_DATABASE_URL` (falls back to the local dev database) - same
 //! requirement as apps/api/src/app.rs's tests.
 
-use api::app::{create_router, AppState};
+use api::app::{AppState, create_router};
 use api::config::Config;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -21,9 +21,13 @@ use uuid::Uuid;
 async fn test_state() -> AppState {
     let url = std::env::var("TEST_DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:132456@127.0.0.1:5432/ahlan-commerce".to_string());
-    AppState::new(Config { api_bind_addr: "0.0.0.0:3000".parse().unwrap(), redis_url: "redis://127.0.0.1:6379".into(), database_url: url })
-        .await
-        .expect("connect to Postgres for PRD scenario tests")
+    AppState::new(Config {
+        api_bind_addr: "0.0.0.0:3000".parse().unwrap(),
+        redis_url: "redis://127.0.0.1:6379".into(),
+        database_url: url,
+    })
+    .await
+    .expect("connect to Postgres for PRD scenario tests")
 }
 
 fn unique_handle(label: &str) -> String {
@@ -45,7 +49,11 @@ fn create_request(body: Value) -> Request<Body> {
 }
 
 fn list_request(query: &str) -> Request<Body> {
-    let uri = if query.is_empty() { "/api/products".to_string() } else { format!("/api/published_products") };
+    let uri = if query.is_empty() {
+        "/api/products".to_string()
+    } else {
+        "/api/published_products".to_string()
+    };
     Request::builder().uri(uri).body(Body::empty()).unwrap()
 }
 
@@ -68,10 +76,16 @@ async fn prd_prod_001_valid_product_create() {
 
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = body_json(response).await;
-    assert!(body["id"].is_string(), "response must include a generated id");
+    assert!(
+        body["id"].is_string(),
+        "response must include a generated id"
+    );
     assert_eq!(body["handle"], handle);
     assert_eq!(body["published"], true);
-    assert!(body["published_at"].is_string(), "published:true must set published_at");
+    assert!(
+        body["published_at"].is_string(),
+        "published:true must set published_at"
+    );
     assert!(body["created_at"].is_string());
     assert!(body["updated_at"].is_string());
 }
@@ -88,7 +102,11 @@ async fn prd_prod_002_duplicate_handle_rejected() {
         })
     };
 
-    let first = app.clone().oneshot(create_request(make_body())).await.unwrap();
+    let first = app
+        .clone()
+        .oneshot(create_request(make_body()))
+        .await
+        .unwrap();
     assert_eq!(first.status(), StatusCode::CREATED);
     let original = body_json(first).await;
 
@@ -96,7 +114,11 @@ async fn prd_prod_002_duplicate_handle_rejected() {
         "title": "Impostor", "handle": handle,
         "price_cents": 1, "inventory_quantity": 999, "published": true
     });
-    let second = app.clone().oneshot(create_request(second_body)).await.unwrap();
+    let second = app
+        .clone()
+        .oneshot(create_request(second_body))
+        .await
+        .unwrap();
     assert_eq!(second.status(), StatusCode::CONFLICT);
     let error = body_json(second).await;
     assert_eq!(error["error"]["code"], "duplicate_product_handle");
@@ -131,7 +153,10 @@ async fn prd_prod_003_list_empty_products() {
     assert_eq!(response.status(), StatusCode::OK);
     let products = body_json(response).await;
 
-    assert!(products.is_array(), "an empty result must still be a list, not an error or null");
+    assert!(
+        products.is_array(),
+        "an empty result must still be a list, not an error or null"
+    );
     assert!(
         !products
             .as_array()
@@ -171,9 +196,14 @@ async fn prd_prod_004_list_persisted_products() {
     assert!(all.iter().any(|p| p["handle"] == draft_handle));
 
     // Published-only: draft must be genuinely absent, not just unmarked.
-    let published_only = body_json(app.oneshot(list_request("published=true")).await.unwrap()).await;
+    let published_only =
+        body_json(app.oneshot(list_request("published=true")).await.unwrap()).await;
     let published_only = published_only.as_array().unwrap();
-    assert!(published_only.iter().any(|p| p["handle"] == published_handle));
+    assert!(
+        published_only
+            .iter()
+            .any(|p| p["handle"] == published_handle)
+    );
     assert!(
         !published_only.iter().any(|p| p["handle"] == draft_handle),
         "an unpublished product must never appear in the published-only list"
@@ -191,22 +221,34 @@ async fn prd_prod_005_invalid_create_input_rejected() {
     let app = create_router(test_state().await);
 
     let cases = [
-        ("blank title", serde_json::json!({
-            "title": "", "handle": unique_handle("blank-title"),
-            "price_cents": 100, "inventory_quantity": 1, "published": true
-        })),
-        ("malformed handle", serde_json::json!({
-            "title": "X", "handle": "Not A Valid Handle!",
-            "price_cents": 100, "inventory_quantity": 1, "published": true
-        })),
-        ("negative price", serde_json::json!({
-            "title": "X", "handle": unique_handle("neg-price"),
-            "price_cents": -1, "inventory_quantity": 1, "published": true
-        })),
-        ("negative inventory", serde_json::json!({
-            "title": "X", "handle": unique_handle("neg-inventory"),
-            "price_cents": 100, "inventory_quantity": -1, "published": true
-        })),
+        (
+            "blank title",
+            serde_json::json!({
+                "title": "", "handle": unique_handle("blank-title"),
+                "price_cents": 100, "inventory_quantity": 1, "published": true
+            }),
+        ),
+        (
+            "malformed handle",
+            serde_json::json!({
+                "title": "X", "handle": "Not A Valid Handle!",
+                "price_cents": 100, "inventory_quantity": 1, "published": true
+            }),
+        ),
+        (
+            "negative price",
+            serde_json::json!({
+                "title": "X", "handle": unique_handle("neg-price"),
+                "price_cents": -1, "inventory_quantity": 1, "published": true
+            }),
+        ),
+        (
+            "negative inventory",
+            serde_json::json!({
+                "title": "X", "handle": unique_handle("neg-inventory"),
+                "price_cents": 100, "inventory_quantity": -1, "published": true
+            }),
+        ),
     ];
 
     for (label, body) in cases {

@@ -1,23 +1,12 @@
-use deadpool_postgres::{
-    Manager,
-    ManagerConfig,
-    Pool,
-    RecyclingMethod,
-};
+use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use tokio_postgres::NoTls;
 
 use crate::error::CatalogDbError;
 
-pub async fn create_pool(
-    database_url: &str,
-) -> Result<Pool, CatalogDbError> {
-    let config: tokio_postgres::Config = database_url
-        .parse()
-        .map_err(|err| {
-            CatalogDbError::InvalidDatabaseUrl(
-                format!("invalid database URL: {err}"),
-            )
-        })?;
+pub async fn create_pool(database_url: &str) -> Result<Pool, CatalogDbError> {
+    let config: tokio_postgres::Config = database_url.parse().map_err(|err| {
+        CatalogDbError::InvalidDatabaseUrl(format!("invalid database URL: {err}"))
+    })?;
 
     let manager = Manager::from_config(
         config,

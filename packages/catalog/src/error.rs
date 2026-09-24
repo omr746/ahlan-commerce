@@ -1,5 +1,5 @@
-use thiserror::Error;
 use crate::id::ProductId;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum CatalogError {
@@ -8,6 +8,6 @@ pub enum CatalogError {
 
     #[error("product {0} was not found")]
     NotFound(ProductId),
-     #[error("product storage failed")]
+    #[error("product storage failed")]
     Storage(#[source] sqlx::Error),
 }

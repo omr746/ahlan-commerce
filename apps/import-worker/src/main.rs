@@ -4,7 +4,7 @@ use api::observability::init_tracing;
 use import_worker::loop_runner::run;
 
 #[tokio::main]
-async fn main()->Result<(), String> {
+async fn main() -> Result<(), String> {
     init_tracing();
     let config = Config::new()?;
 

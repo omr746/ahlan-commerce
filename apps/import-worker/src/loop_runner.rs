@@ -14,10 +14,10 @@ pub async fn run(state: AppState) {
     loop {
         tick = tick.wrapping_add(1);
 
-        if tick % REAP_EVERY_N_TICKS == 0 {
+        if tick.is_multiple_of(REAP_EVERY_N_TICKS) {
             reap(&state).await;
         }
-        if tick % RETRY_FAILED_EVERY_N_TICKS == 0 {
+        if tick.is_multiple_of(RETRY_FAILED_EVERY_N_TICKS) {
             auto_retry_failed(&state).await;
         }
 
@@ -50,7 +50,11 @@ async fn run_one(state: &AppState, job: &catalog::ImportJob) {
     .await;
 
     match result {
-        Ok(created) => match state.import_jobs.mark_succeeded(job.id, state.clock.as_ref()).await {
+        Ok(created) => match state
+            .import_jobs
+            .mark_succeeded(job.id, state.clock.as_ref())
+            .await
+        {
             Ok(_) => tracing::info!(
                 job_id = %job.id, attempt = job.attempts, status = "succeeded",
                 products_created = created, "import job succeeded"
@@ -62,12 +66,18 @@ async fn run_one(state: &AppState, job: &catalog::ImportJob) {
             // whatever accessor AppError actually exposes (e.g. `.message()`)
             // if it isn't a plain Display impl.
             let message = Some(app_err.public_message());
-            match state.import_jobs.mark_failed(job.id, &message, state.clock.as_ref()).await {
+            match state
+                .import_jobs
+                .mark_failed(job.id, &message, state.clock.as_ref())
+                .await
+            {
                 Ok(_) => tracing::error!(
                     job_id = %job.id, attempt = job.attempts, status = "failed",
                     error_code = "import_failed", error =%message.as_deref().unwrap_or(""), "import job failed"
                 ),
-                Err(e) => tracing::error!(job_id = %job.id, error = %e, "failed to mark job failed"),
+                Err(e) => {
+                    tracing::error!(job_id = %job.id, error = %e, "failed to mark job failed")
+                }
             }
         }
     }
@@ -75,13 +85,19 @@ async fn run_one(state: &AppState, job: &catalog::ImportJob) {
 
 async fn reap(state: &AppState) {
     let stale_before = Utc::now() - STALE_RUNNING_AFTER;
-    match state.import_jobs.reap_stale(stale_before, state.clock.as_ref()).await {
-        Ok(reaped) => for job in reaped {
-            tracing::warn!(
-                job_id = %job.id, attempt = job.attempts, status = %job.status,
-                error_code = "worker_crash_recovered", "reaped a job stuck in running"
-            );
-        },
+    match state
+        .import_jobs
+        .reap_stale(stale_before, state.clock.as_ref())
+        .await
+    {
+        Ok(reaped) => {
+            for job in reaped {
+                tracing::warn!(
+                    job_id = %job.id, attempt = job.attempts, status = %job.status,
+                    error_code = "worker_crash_recovered", "reaped a job stuck in running"
+                );
+            }
+        }
         Err(e) => tracing::error!(error = %e, "failed to reap stale running jobs"),
     }
 }

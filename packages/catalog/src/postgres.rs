@@ -1,53 +1,59 @@
-use chrono :: {DateTime,Utc};
-use sqlx ::postgres::{PgPoolOptions,PgRow};
+use chrono::{DateTime, Utc};
+use sqlx::postgres::{PgPoolOptions, PgRow};
 
-use sqlx ::{PgPool,Row};
+use crate::catalog::{Product, ProductCreate, ProductUpdate};
 use crate::clock::Clock;
 use crate::error::CatalogError;
 use crate::id::{IdGenerator, ProductId};
-use crate::catalog::{Product, ProductCreate,ProductUpdate};
+use sqlx::{PgPool, Row};
 
 const SCHEMA: &str = include_str!("../../../db/schema/products.sql");
 
 #[derive(Clone)]
-pub struct PgCatalog{
-    pool:PgPool,
+pub struct PgCatalog {
+    pool: PgPool,
 }
-impl PgCatalog{
-pub async fn connect(database_url:&str)->Result<Self,sqlx::Error>{
-    let pool=PgPoolOptions::new()
-    .max_connections(10)
-    .connect(database_url)
-    .await?;
-  //  Self::ensure_schema(&pool).await?;
-    Ok(Self{pool})
-}
-  pub fn from_pool(pool: PgPool) -> Self {
-        Self { pool}
+impl PgCatalog {
+    pub async fn connect(database_url: &str) -> Result<Self, sqlx::Error> {
+        let pool = PgPoolOptions::new()
+            .max_connections(10)
+            .connect(database_url)
+            .await?;
+        //  Self::ensure_schema(&pool).await?;
+        Ok(Self { pool })
     }
-   pub async fn ensure_schema(pool:&PgPool)->Result<(),sqlx::Error>{
-    sqlx::query(SCHEMA).execute(pool).await?;
-    Ok(())
-   }
-   pub async fn get_published_products(&self)->Result<Vec<Product>,CatalogError>{
-     let rows = sqlx::query(
+    pub fn from_pool(pool: PgPool) -> Self {
+        Self { pool }
+    }
+    pub async fn ensure_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
+        sqlx::query(SCHEMA).execute(pool).await?;
+        Ok(())
+    }
+    pub async fn get_published_products(&self) -> Result<Vec<Product>, CatalogError> {
+        let rows = sqlx::query(
             "select id, title, handle, description, price_cents, inventory_quantity, published, \
              published_at, created_at, updated_at \
              from products where published_at IS NOT NULL",
-        ).fetch_all(&self.pool).await.map_err(CatalogError::Storage)?;
-     rows.into_iter().map(product_from_row).collect()
-   }
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(CatalogError::Storage)?;
+        rows.into_iter().map(product_from_row).collect()
+    }
 
-   pub async fn create_product(&self,input:ProductCreate,ids:&dyn IdGenerator,clock:&dyn Clock)->Result<Product,CatalogError>{
-
-      let id=ids.new_id();
-      let now=clock.now();
-         let published_at = if input.published { Some(now) } else { None };
-      let result=sqlx::query(
+    pub async fn create_product(
+        &self,
+        input: ProductCreate,
+        ids: &dyn IdGenerator,
+        clock: &dyn Clock,
+    ) -> Result<Product, CatalogError> {
+        let id = ids.new_id();
+        let now = clock.now();
+        let published_at = if input.published { Some(now) } else { None };
+        let result=sqlx::query(
         "insert into products\
       (id,title,handle,price_cents,inventory_quantity,published,created_at,updated_at,description,published_at)\
       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-      
       ).bind(id)
         .bind(&input.title)
         .bind(&input.handle)
@@ -60,8 +66,8 @@ pub async fn connect(database_url:&str)->Result<Self,sqlx::Error>{
         .bind(published_at)
         .execute(&self.pool)
         .await;
-        match result{
-            Ok(_)=>Ok(Product {
+        match result {
+            Ok(_) => Ok(Product {
                 id,
                 title: input.title,
                 handle: input.handle,
@@ -70,29 +76,28 @@ pub async fn connect(database_url:&str)->Result<Self,sqlx::Error>{
                 published: input.published,
                 created_at: now,
                 updated_at: now,
-                description:input.description,
-                published_at
+                description: input.description,
+                published_at,
             }),
             Err(sqlx::Error::Database(db_err)) if db_err.code().as_deref() == Some("23505") => {
                 Err(CatalogError::DuplicateHandle(input.handle))
             }
             Err(err) => Err(CatalogError::Storage(err)),
         }
+    }
 
-
-   }
-
-   pub async fn list_products(&self)->Result<Vec<Product>,CatalogError>{
-        
-     let rows=sqlx::query(
-        "select id, title, handle, description, price_cents, inventory_quantity, published, \
+    pub async fn list_products(&self) -> Result<Vec<Product>, CatalogError> {
+        let rows = sqlx::query(
+            "select id, title, handle, description, price_cents, inventory_quantity, published, \
              published_at, created_at, updated_at \
              from products order by created_at asc",
-     ).fetch_all(&self.pool).await
-     .map_err(CatalogError::Storage)?;
-    rows.into_iter().map(product_from_row).collect()
-   }
-  pub async fn get_product(&self, id: ProductId) -> Result<Product, CatalogError> {
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(CatalogError::Storage)?;
+        rows.into_iter().map(product_from_row).collect()
+    }
+    pub async fn get_product(&self, id: ProductId) -> Result<Product, CatalogError> {
         let row = sqlx::query(
             "select id, title, handle, description, price_cents, inventory_quantity, published, \
              published_at, created_at, updated_at \
@@ -109,7 +114,7 @@ pub async fn connect(database_url:&str)->Result<Self,sqlx::Error>{
         }
     }
 
-     pub async fn update_product(
+    pub async fn update_product(
         &self,
         id: ProductId,
         input: ProductUpdate,
@@ -144,23 +149,29 @@ pub async fn connect(database_url:&str)->Result<Self,sqlx::Error>{
             None => Err(CatalogError::NotFound(id)),
         }
     }
-
 }
-
 
 fn product_from_row(row: PgRow) -> Result<Product, CatalogError> {
     Ok(Product {
         id: row.try_get("id").map_err(CatalogError::Storage)?,
         title: row.try_get("title").map_err(CatalogError::Storage)?,
         handle: row.try_get("handle").map_err(CatalogError::Storage)?,
-        price_cents: row.try_get::<i32, _>("price_cents").map_err(CatalogError::Storage)? as u32,
+        price_cents: row
+            .try_get::<i32, _>("price_cents")
+            .map_err(CatalogError::Storage)? as u32,
         inventory_quantity: row
             .try_get::<i32, _>("inventory_quantity")
             .map_err(CatalogError::Storage)? as u32,
         published: row.try_get("published").map_err(CatalogError::Storage)?,
-        created_at: row.try_get::<DateTime<Utc>, _>("created_at").map_err(CatalogError::Storage)?,
-        updated_at: row.try_get::<DateTime<Utc>, _>("updated_at").map_err(CatalogError::Storage)?,
-        published_at:row.try_get::<Option<DateTime<Utc>>,_>("published_at").map_err(CatalogError::Storage)?,
-        description:row.try_get("description").map_err(CatalogError::Storage)?
+        created_at: row
+            .try_get::<DateTime<Utc>, _>("created_at")
+            .map_err(CatalogError::Storage)?,
+        updated_at: row
+            .try_get::<DateTime<Utc>, _>("updated_at")
+            .map_err(CatalogError::Storage)?,
+        published_at: row
+            .try_get::<Option<DateTime<Utc>>, _>("published_at")
+            .map_err(CatalogError::Storage)?,
+        description: row.try_get("description").map_err(CatalogError::Storage)?,
     })
 }

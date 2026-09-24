@@ -20,9 +20,6 @@ impl ScalarType for GraphQLDateTime {
     }
 
     fn to_value(&self) -> Value {
-        Value::String(self.0.to_rfc3339_opts(
-            chrono::SecondsFormat::AutoSi,
-            true,
-        ))
+        Value::String(self.0.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true))
     }
 }

@@ -1,39 +1,38 @@
-
 use axum::{
-    Json, http::{StatusCode}, response::{IntoResponse, Response}
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
 };
+use catalog::CatalogError;
+use catalog_db::CatalogDbError;
 use rootcause::prelude::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-use catalog::CatalogError;
-use catalog_db::CatalogDbError;
 
-#[derive(Debug,thiserror::Error)]
-enum AppErrorKind{
-  #[error("{0}")]
-  Validation(String),
-  #[error("product handle '{0}' is already in use ")]
-  DuplicateProductHandle(String),
-  #[error("{0} was not found")]
+#[derive(Debug, thiserror::Error)]
+enum AppErrorKind {
+    #[error("{0}")]
+    Validation(String),
+    #[error("product handle '{0}' is already in use ")]
+    DuplicateProductHandle(String),
+    #[error("{0} was not found")]
     NotFound(String),
-  #[error("a required dependency is unavailable")]
-  DependencyUnavailable,
-  #[error("the server failed unexpectedly")]
-  Internal,
-
+    #[error("a required dependency is unavailable")]
+    DependencyUnavailable,
+    #[error("the server failed unexpectedly")]
+    Internal,
 }
 
 #[derive(Debug)]
-pub struct AppError{
- kind:AppErrorKind,
- request_id:Uuid,
- cause:Option<Report>,   
+pub struct AppError {
+    kind: AppErrorKind,
+    request_id: Uuid,
+    cause: Option<Report>,
 }
 
-
-impl AppError{
-pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
+impl AppError {
+    pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
         Self {
             kind: AppErrorKind::Validation(message.into()),
             request_id,
@@ -47,7 +46,7 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
             cause: None,
         }
     }
-     pub fn not_found(message: impl Into<String>, request_id: Uuid) -> Self {
+    pub fn not_found(message: impl Into<String>, request_id: Uuid) -> Self {
         Self {
             kind: AppErrorKind::NotFound(message.into()),
             request_id,
@@ -69,24 +68,21 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
             cause: Some(cause),
         }
     }
-    pub fn from_catalog(err:CatalogError,request_id:Uuid)->Self{
-      match err{
+    pub fn from_catalog(err: CatalogError, request_id: Uuid) -> Self {
+        match err {
             CatalogError::DuplicateHandle(handle) => Self::duplicate_handle(handle, request_id),
             CatalogError::NotFound(id) => Self::not_found(format!("product {id}"), request_id),
-               CatalogError::Storage(source) => {
-               
+            CatalogError::Storage(source) => {
                 let cause = Err::<(), _>(source)
                     .context("product storage query failed")
                     .unwrap_err();
                 Self::dependency_unavailable(request_id, cause.into())
             }
-      }
+        }
     }
-     pub fn from_catalog_db(err: CatalogDbError, request_id: Uuid) -> Self {
+    pub fn from_catalog_db(err: CatalogDbError, request_id: Uuid) -> Self {
         match err {
-            CatalogDbError::NotFound => {
-                Self::not_found("product".to_string(), request_id)
-            }
+            CatalogDbError::NotFound => Self::not_found("product".to_string(), request_id),
             CatalogDbError::DuplicateHandle => {
                 Self::duplicate_handle("product handle".to_string(), request_id)
             }
@@ -104,7 +100,7 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
             }
         }
     }
-       pub fn code(&self) -> &'static str {
+    pub fn code(&self) -> &'static str {
         match self.kind {
             AppErrorKind::Validation(_) => "validation_failed",
             AppErrorKind::DuplicateProductHandle(_) => "duplicate_product_handle",
@@ -113,7 +109,7 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
             AppErrorKind::Internal => "internal_error",
         }
     }
-      pub fn status(&self) -> StatusCode {
+    pub fn status(&self) -> StatusCode {
         match self.kind {
             AppErrorKind::Validation(_) => StatusCode::BAD_REQUEST,
             AppErrorKind::DuplicateProductHandle(_) => StatusCode::CONFLICT,
@@ -122,14 +118,14 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
             AppErrorKind::Internal => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
-     pub fn public_message(&self) -> String {
+    pub fn public_message(&self) -> String {
         self.kind.to_string()
     }
 
     pub fn request_id(&self) -> Uuid {
         self.request_id
     }
-    pub fn log(&self){
+    pub fn log(&self) {
         match &self.cause {
             Some(cause) => tracing::error!(
                 request_id = %self.request_id,
@@ -145,10 +141,9 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
                 "request failed"
             ),
         }
-      
     }
 
- pub fn body(&self) -> ErrorEnvelope {
+    pub fn body(&self) -> ErrorEnvelope {
         ErrorEnvelope {
             error: ErrorBody {
                 code: self.code().to_string(),
@@ -157,11 +152,9 @@ pub fn validation(message: impl Into<String>, request_id: Uuid) -> Self {
             },
         }
     }
-
-
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq,ToSchema)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, ToSchema)]
 pub struct ErrorBody {
     pub code: String,
     pub message: String,
@@ -169,24 +162,21 @@ pub struct ErrorBody {
     pub request_id: Uuid,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq,ToSchema)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, ToSchema)]
 pub struct ErrorEnvelope {
     pub error: ErrorBody,
 }
 
-impl IntoResponse for AppError{
-    fn into_response(self)->Response{
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
         self.log();
-        let status=self.status();
-        let code=ErrorCode(self.code());
-        let mut response=(status,Json(self.body())).into_response();
+        let status = self.status();
+        let code = ErrorCode(self.code());
+        let mut response = (status, Json(self.body())).into_response();
         response.extensions_mut().insert(code);
         response
-      
     }
 }
-
-
 
 #[derive(Clone, Copy)]
 pub struct ErrorCode(pub &'static str);

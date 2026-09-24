@@ -4,7 +4,7 @@
 
 use catalog::Product;
 use chrono::Utc;
-use storefront::{render_product_page, ProductPageContext};
+use storefront::{ProductPageContext, render_product_page};
 use uuid::Uuid;
 
 fn sample_product(inventory_quantity: u32) -> Product {
@@ -29,7 +29,10 @@ fn renders_title_price_and_availability() {
 
     assert!(html.contains("Coffee Mug"), "product title must appear");
     assert!(html.contains("$25.00"), "product price must appear");
-    assert!(html.contains("In stock (12 available)"), "availability must appear");
+    assert!(
+        html.contains("In stock (12 available)"),
+        "availability must appear"
+    );
 }
 
 #[test]
@@ -55,6 +58,9 @@ fn escapes_user_supplied_title() {
 
     let html = render_product_page(&ProductPageContext::from_product(&product));
 
-    assert!(!html.contains("<script>"), "raw script tag must not survive rendering");
+    assert!(
+        !html.contains("<script>"),
+        "raw script tag must not survive rendering"
+    );
     assert!(html.contains("&lt;script&gt;"));
 }
