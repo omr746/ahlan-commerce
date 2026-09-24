@@ -1,7 +1,6 @@
 use api::dto::ProductCreateRequest;
 use api::error::AppError;
 use catalog::{Clock, IdGenerator,ProductCreate};
-use catalog_db::error::CatalogDbError;
 use catalog_db::PgCatalog;
 use uuid::Uuid;
 

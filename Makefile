@@ -1,4 +1,4 @@
-.PHONY: build run docs-api-check docs-api test health run-worker migrate migrate-diff db-start db-stop db-logs start stop cornucopia-generate redis-health redis-logs
+.PHONY: build run docs-api-check docs-api test health run-worker migrate migrate-diff db-start db-stop db-logs start stop cornucopia-generate redis-health redis-logs migrate-runtime build-api build-admin start-api-release start-worker-release docker-build
 
 APP_PORT ?= 3000
 
@@ -91,3 +91,22 @@ docs-api-check:
 		exit 1; \
 	fi; \
 	echo "generated docs are up to date"
+
+build-api:
+	cargo build --release -p api -p import-worker
+
+build-admin:
+	cd admin && npm ci && npm run build
+
+start-api-release:
+	./target/release/api
+ 
+start-worker-release:
+	./target/release/import-worker
+
+
+migrate-runtime:
+	cargo run -p migrator
+
+docker-build:
+	docker build -t ahlan-commerce:local .

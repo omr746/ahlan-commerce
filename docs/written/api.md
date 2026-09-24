@@ -5,8 +5,8 @@ lives in two generated artifacts that are never hand-edited:
 
 | Surface | Artifact | How to view |
 |---|---|---|
-| REST | [`docs/generated/openapi.json`](generated/openapi.json) | `make start`, then open <http://127.0.0.1:3000/docs/scalar> |
-| GraphQL | [`docs/generated/schema.graphql`](generated/schema.graphql) | Read the file, or open <http://127.0.0.1:3000/graphql> |
+| REST | [`docs/generated/openapi.json`](../generated/openapi.json) | `make start`, then open <http://127.0.0.1:3000/docs/scalar> |
+| GraphQL | [`docs/generated/schema.graphql`](../generated/schema.graphql) | Read the file, or open <http://127.0.0.1:3000/graphql> |
 
 If this page and a generated artifact disagree, the artifact is right.
 
@@ -54,7 +54,6 @@ path parameters, or content negotiation. Merging them would mean losing
 information from both, so each surface is exported in its native format
 and this page links to both.
 
-# Append this section to the end of your existing docs/api.md
 
 ## Compatibility adapter (external product import)
 

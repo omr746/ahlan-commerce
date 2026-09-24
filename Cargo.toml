@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/api","apps/import-worker", "packages/storefront","packages/cache","packages/catalog","packages/catalog-db"]
+members = ["apps/api", "apps/migrator", "apps/import-worker", "packages/storefront", "packages/cache", "packages/catalog", "packages/catalog-db"]
 resolver = "2"
 
 

@@ -3,7 +3,6 @@ use async_graphql::{Context, Object, Result};
 use crate::app::AppState;
 use crate::graphql::product::Product;
 use crate::graphql::input::ProductCreateInput;
-use catalog::Catalog;
 use crate::graphql::error::{graphql_error,validation_error};   
 
 pub struct Mutation;

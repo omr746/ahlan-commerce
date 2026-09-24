@@ -28,26 +28,19 @@ fn maps_every_field_from_the_committed_fixture() {
     assert_eq!(native.price_cents, 2500);
     assert_eq!(native.inventory_quantity, 12);
     assert_eq!(native.published, true);
+    assert_eq!(native.description, None);
 }
 
 #[test]
 fn external_id_has_no_native_equivalent_and_is_dropped() {
     let external = load_fixture();
-    let native = map_external_to_native(&external).unwrap();
+    let baseline = map_external_to_native(&external).unwrap();
 
-    // ProductCreateRequest has no field for external_id at all -- the
-    // strongest way to prove it's dropped is that this compiles: if a
-    // native field for it existed, this test would need to reference it.
-    // No description field exists in the external shape, so it must map
-    // to None regardless of what external_id was.
-    assert_eq!(native.description, None);
-}
+    let mut modified = external;
+    modified.external_id = "completely-different-id".to_string();
+    let native = map_external_to_native(&modified).unwrap();
 
-#[test]
-fn description_is_always_none_since_the_external_shape_has_no_such_field() {
-    let external = load_fixture();
-    let native = map_external_to_native(&external).unwrap();
-    assert_eq!(native.description, None);
+    assert_eq!(native, baseline);
 }
 
 #[test]

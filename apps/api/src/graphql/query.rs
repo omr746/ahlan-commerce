@@ -1,7 +1,6 @@
 use async_graphql::{Context, Object, Result};
 use crate::app::AppState;
 use crate::graphql::product::Product;
-use catalog::Catalog;
 
 pub struct Query;
 

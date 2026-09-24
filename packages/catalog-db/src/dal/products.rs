@@ -1,9 +1,9 @@
 
 use catalog::{Product, ProductCreate, ProductUpdate};
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{FixedOffset, Utc};
 use deadpool_postgres::Pool;
 use uuid::Uuid;
-use catalog::{Clock, IdGenerator, SystemClock, UuidV7Generator};
+use catalog::{Clock, IdGenerator};
 use crate::error::CatalogDbError;
 
 use catalog_db_queries::queries::products::{

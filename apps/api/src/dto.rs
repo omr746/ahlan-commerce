@@ -18,17 +18,17 @@ impl From<ProductUpdateRequest> for ProductUpdate {
     }
 }
 
-#[derive(Debug, Deserialize,ToSchema)]
-pub struct ProductCreateRequest{
-     pub title: String,
+#[derive(Debug, Clone, PartialEq, Deserialize, ToSchema)]
+pub struct ProductCreateRequest {
+    pub title: String,
     pub handle: String,
     pub price_cents: i64,
     pub inventory_quantity: i64,
     pub published: bool,
     #[serde(default)]
-    pub description: Option<String>
-
+    pub description: Option<String>,
 }
+
 impl ProductCreateRequest {
  
     pub fn validate(&self) -> Result<(), String> {

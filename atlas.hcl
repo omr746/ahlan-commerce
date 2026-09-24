@@ -26,6 +26,6 @@ env "local" {
   migration {
     # Where generated migration files (and atlas.sum, the checksum file
     # covering them) live.
-    dir = "file://db/migrations"
+   dir = "file://db/migrations?format=flyway"
   }
 }

@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+target/
+docs/
+fixtures/
+.git/
+.github/
+mprocs.yaml
+*.md
+node_modules/
+admin/dist/
+admin/node_modules/

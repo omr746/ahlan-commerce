@@ -32,35 +32,50 @@ fn a_well_formed_native_request_passes_validation() {
 fn native_validation_rejects_an_empty_title() {
     let mut request = valid_native_request();
     request.title = "   ".to_string();
-    assert!(request.validate().is_err());
+    assert_eq!(
+        request.validate(),
+        Err("Product title is required.".to_string())
+    );
 }
 
 #[test]
 fn native_validation_rejects_an_empty_handle() {
     let mut request = valid_native_request();
     request.handle = "".to_string();
-    assert!(request.validate().is_err());
+    assert_eq!(
+        request.validate(),
+        Err("Product handle is required.".to_string())
+    );
 }
 
 #[test]
 fn native_validation_rejects_an_invalid_handle_character_set() {
     let mut request = valid_native_request();
     request.handle = "Not A Valid Handle!".to_string();
-    assert!(request.validate().is_err());
+    assert_eq!(
+        request.validate(),
+        Err("Product handle must be lowercase letters, numbers, and hyphens only.".to_string())
+    );
 }
 
 #[test]
 fn native_validation_rejects_a_negative_price() {
     let mut request = valid_native_request();
     request.price_cents = -100;
-    assert!(request.validate().is_err());
+    assert_eq!(
+        request.validate(),
+        Err("price_cents must be greater than or equal to 0.".to_string())
+    );
 }
 
 #[test]
 fn native_validation_rejects_a_negative_inventory_quantity() {
     let mut request = valid_native_request();
     request.inventory_quantity = -1;
-    assert!(request.validate().is_err());
+    assert_eq!(
+        request.validate(),
+        Err("inventory_quantity must be greater than or equal to 0.".to_string())
+    );
 }
 
 #[test]

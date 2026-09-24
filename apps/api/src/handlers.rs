@@ -1,14 +1,14 @@
 
 use axum::{
-     extract::{Extension,Json, Path, State,Query}, http::StatusCode, routing::{get,post},
+     extract::{Extension,Json, Path, State,Query}, http::StatusCode
 };
 use serde::{Deserialize, Serialize};
 use crate::app::AppState;
-use catalog::{Catalog,ProductCreate,ProductId};
+use catalog::{ProductCreate,ProductId};
 use tower_http::request_id::RequestId;
 use crate::error::{AppError,ErrorEnvelope};
 use crate::dto::{ProductCreateRequest, ProductResponse,ProductUpdateRequest,ImportJobView,CreateImportJobRequest,CreateImportJobResponse};
-use crate::observability::{self, current_request_id};
+use crate::observability::{ current_request_id};
 use utoipa::ToSchema;
 use crate::openapi::{HEALTH_TAG, PRODUCTS_TAG};
 #[derive(Serialize,ToSchema)]

@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use serde::Serialize;
 
 use crate::clock::Clock;
 use crate::id::{IdGenerator, ProductId};
@@ -122,7 +121,7 @@ mod tests{
             published:true
         };
         let mut catalog=Catalog{products:Vec::new()};
-        catalog.create_product(product,&ids,&clock);
+        let _=catalog.create_product(product,&ids,&clock);
         let products=catalog.list_products();
         assert_eq!(products.len(),1);
         assert_eq!(products[0].title,"Test Product");

@@ -21,7 +21,7 @@ use uuid::Uuid;
 async fn test_state() -> AppState {
     let url = std::env::var("TEST_DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:132456@127.0.0.1:5432/ahlan-commerce".to_string());
-    AppState::new(Config { host: "127.0.0.1".into(), port: 3000, redis_url: "redis://127.0.0.1:6379".into(), database_url: url })
+    AppState::new(Config { api_bind_addr: "0.0.0.0:3000".parse().unwrap(), redis_url: "redis://127.0.0.1:6379".into(), database_url: url })
         .await
         .expect("connect to Postgres for PRD scenario tests")
 }

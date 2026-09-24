@@ -213,7 +213,7 @@ was never going to be the thing that owns that.
 ```bash
 createdb ahlan_commerce   # or: psql -c 'create database ahlan_commerce;'
 atlas migrate apply --env local    # apply schema (Chapter 04.3) - see docs/atlas-command-notes.md
-DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/ahlan_commerce cargo run -p api
+DATABASE_URL=postgres://postgres:132456@127.0.0.1:5432/ahlan-commerce cargo run -p api
 ```
 
 `DATABASE_URL` defaults to that same local connection string if unset (see
@@ -273,8 +273,8 @@ no database needed. `apps/api`'s HTTP tests are now genuine integration
 tests against a real Postgres:
 
 ```bash
-# defaults to postgres://postgres:postgres@127.0.0.1:5432/ahlan_commerce
-TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/ahlan_commerce \
+# defaults to postgres://postgres:132456@127.0.0.1:5432/ahlan-commerce
+TEST_DATABASE_URL=postgres://postgres:132456@127.0.0.1:5432/ahlan-commerce \
   cargo test --workspace
 ```
 

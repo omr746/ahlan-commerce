@@ -1,29 +1,43 @@
-use std::env;
+use std::{env, net::SocketAddr};
 
-pub const HOST:&str="APP_HOST";
-pub const PORT:&str="APP_PORT";
+pub const API_BIND_ADDR: &str = "API_BIND_ADDR";
 pub const ENV_DATABASE_URL: &str = "DATABASE_URL";
-pub struct Config{
-   pub host:String,
-    pub port:u16,
-     pub redis_url: String, 
-    pub database_url:String
-}
-impl Config{
-   pub fn new()->Self
-{
-    let host=env::var(HOST).unwrap_or_else(|_| "0.0.0.0".to_string());
-    let port=env::var(PORT).ok().and_then(|p|p.parse().ok()).unwrap_or(3000);
-     let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| {
-            "redis://127.0.0.1:6379".to_string()
-        });
-     let database_url = env::var(ENV_DATABASE_URL).unwrap_or_else(|_| {
-            "postgres://postgres:132456@127.0.0.1:5432/ahlan-commerce".to_string()
-        });
-        Self { host, port, redis_url, database_url }
+pub const ENV_REDIS_URL: &str = "REDIS_URL";
 
+pub struct Config {
+    pub api_bind_addr: SocketAddr,
+    pub redis_url: String,
+    pub database_url: String,
 }
-pub fn addr(&self)->String{
-    format!("{}:{}",self.host,self.port)
+
+impl Config {
+    
+    pub fn new() -> Result<Self, String> {
+        dotenvy::dotenv().ok();
+        let api_bind_addr = required_env(API_BIND_ADDR)?
+            .parse::<SocketAddr>()
+            .map_err(|_| {
+                format!(
+                    "Invalid value for {API_BIND_ADDR}: expected host:port"
+                )
+            })?;
+
+        let redis_url = required_env(ENV_REDIS_URL)?;
+        let database_url = required_env(ENV_DATABASE_URL)?;
+
+        Ok(Self {
+            api_bind_addr,
+            redis_url,
+            database_url,
+        })
+    }
+
+    pub fn addr(&self) -> String {
+        self.api_bind_addr.to_string()
+    }
 }
+
+fn required_env(name: &str) -> Result<String, String> {
+    env::var(name)
+        .map_err(|_| format!("Missing required environment variable: {name}"))
 }

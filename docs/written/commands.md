@@ -88,3 +88,65 @@ locally before pushing to catch staleness without waiting for CI.
 | <http://127.0.0.1:3000/docs/scalar> | REST docs UI (Scalar), served from the live spec |
 | `docs/generated/schema.graphql` | GraphQL schema, read directly |
 | `docs/api.md` | Index of both surfaces with links and these commands |
+
+# Rust checks (CI: `lint` job)
+ 
+| Command | What it does |
+|---|---|
+| `cargo fmt --all --check` | Fails if any file isn't formatted per rustfmt's rules. Fix with `cargo fmt --all` (no `--check`). |
+| `cargo clippy --workspace --all-targets -- -D warnings` | Lints every crate, every target (including tests/examples/bins), treating warnings as errors. |
+ 
+## Rust tests (CI: `db-checks` job)
+ 
+Two distinct commands, not one — this is what "unit" vs. "integration"
+means concretely in this project:
+ 
+| Command | What it runs | Needs Postgres/Redis? |
+|---|---|---|
+| `cargo test --workspace --lib --bins` | Inline `#[cfg(test)]` modules only (price parsing, cache key formatting, config fail-fast behavior, native DTO validation) | No |
+| `cargo test --workspace --tests` | Everything under every crate's `tests/` directory (adapter boundary tests, cache-aside hit/miss/invalidation/fallback tests, native product-create tests) | Yes — some of these tests open a real connection |
+ 
+Both need `DATABASE_URL` and `REDIS_URL` set and a migrated schema; run
+`make db-start && make migrate` first if running locally outside `make test`.
+ 
+## Admin frontend (CI: `frontend` job)
+ 
+```bash
+cd admin && npm ci && npm run build
+```
+ 
+## Generated docs (CI: `docs` job)
+ 
+Already documented — see the existing "Documentation" section of this
+file: `make docs-api` / `make docs-api-check`.
+ 
+## Atlas migration check (CI: `db-checks` job)
+ 
+```bash
+atlas migrate apply --url "$DATABASE_URL" --dir "file://db/migrations?format=flyway"
+```
+ 
+This is the exact command CI runs, using GitHub Actions' Postgres service
+container as `$DATABASE_URL`. It's the same command as `make migrate`
+with `--dir`/`--url` passed explicitly instead of via `atlas.hcl`'s
+`--env local`, since CI has no `atlas.hcl` env block pointed at its
+ephemeral service container.
+ 
+`format=flyway` is required here, not optional — see the Atlas ↔
+Refinery section of `docs/deployment-prep.md` for why the migration
+files are named `V{n}__{name}.sql` instead of Atlas's default naming.
+ 
+## Cornucopia regeneration check (CI: `db-checks` job)
+ 
+```bash
+make cornucopia-generate
+git diff --exit-code -- packages/catalog-db/generated
+```
+ 
+Regenerates from the current `db/queries/*.sql` against the just-migrated
+CI database, then fails if anything changed — meaning a query file was
+edited without re-running codegen and committing the result. No manual
+fallback is allowed for this check (per the CI contract) — if it's ever
+red, the fix is always `make cornucopia-generate` + commit, never a
+config workaround.
+ 

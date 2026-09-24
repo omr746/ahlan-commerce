@@ -1,5 +1,5 @@
-h1:ND3jtPtr1ts3F6FeA+C9hLi34JpnhU+LcEN1rhkoQtc=
-20260823133846_initial_products.sql h1:PJBWN0LCmk0RLmbU6AgZmlZbzgWTZxYiQCllNw1U+pg=
-20260826164149_make_published_at_nullable.sql h1:9+FPQraJbRUOp73oHSjeOD/7W2Q/dCZXJ/oLf3DhZnY=
-20260826164340_make_published_not_null.sql h1:oVWaNrbuwZaN0Z/9/ywoQqEdmkT5pYlGZtEN+u251tg=
-20260913064151_add_import_jobs.sql h1:hweM8AzYpqPp8WKCOvqSmmI8Rgarbr+N/B2jX8kHKZM=
+h1:zq/Gp5DIJFCCjsu1rgoTlBVV9C/nMFYIflWgFHgTkYw=
+V1__initial_products.sql h1:EJkKco4vhHOPOepX+b8pKQi2FgFACYdhozYo9aGciE4=
+V2__make_published_at_nullable.sql h1:l5yuBolJnsaUGOCTDFLTeMEBA2iFb4XJ3NJ38OPvSa0=
+V3__make_published_not_null.sql h1:LwQcT+btP9dnn6pDtNgYnPrHFkstKNC1yVWxW46QWlo=
+V4__add_import_jobs.sql h1:TUfI+pGkcbjQdMo4U9tcYitdhauhKOmEKCJp2IEUL30=

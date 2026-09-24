@@ -1,6 +1,6 @@
 
 use axum::{
-    Json, http::{StatusCode, status}, response::{IntoResponse, Response}
+    Json, http::{StatusCode}, response::{IntoResponse, Response}
 };
 use rootcause::prelude::*;
 use serde::{Deserialize, Serialize};

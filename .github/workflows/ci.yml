@@ -5,30 +5,83 @@ on:
     branches: [main]
   pull_request:
 
+# Cancel superseded runs on the same branch/PR so pushes during review
+# don't queue up redundant full CI passes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  docs:
-    name: Documentation is current
+  # --------------------------------------------------------------------
+  # No database, no Redis, no network needed for any of these three --
+  # kept as their own fast job so a formatting typo fails in seconds,
+  # not after waiting for Postgres to boot.
+  # --------------------------------------------------------------------
+  lint:
+    name: Rust formatting + lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      # Task 14.3: fails the build when the checked-in generated artifacts
-      # no longer match the current API shape.
-      #
-      # Deliberately needs no services block -- no Postgres, no Redis. Both
-      # artifacts are derived from types, so this job stays fast and can't
-      # fail for infrastructure reasons unrelated to documentation.
-      - name: Check generated API docs are not stale
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  docs:
+    name: Generated API docs are not stale
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # Needs no database, no Redis, no running server -- both artifacts
+      # are derived from types, not a live app. See docs/commands.md.
+      - name: make docs-api-check
         run: make docs-api-check
 
-  build:
-    name: Build and test
+  frontend:
+    name: Admin frontend typecheck/build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+     
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path:  apps/admin/package-lock.json
+
+      - name: Install deps
+        run: cd admin && npm ci
+
+      - name: Typecheck / build
+        run: cd admin && npm run build
+
+  # --------------------------------------------------------------------
+  # Everything below needs a real Postgres (and Redis, for some tests),
+  # so they share one set of service containers rather than each paying
+  # startup cost separately. Each check is still its own named step, so
+  # a failure is attributable to a specific requirement in the Actions UI
+  # even though they run in one job.
+  # --------------------------------------------------------------------
+  db-checks:
+    name: Tests, Atlas migration check, Cornucopia staleness check
     runs-on: ubuntu-latest
 
     services:
@@ -62,21 +115,35 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
 
       - name: Install Atlas
         run: curl -sSf https://atlasgo.sh | sh
 
-      - name: Apply migrations
-        run: atlas migrate apply --url "$DATABASE_URL" --dir "file://db/migrations"
+      # This job's Postgres service container IS a real database, so the
+      # Atlas check runs for real here -- the manual-fallback allowance
+      # in the CI contract is for runners where a service container isn't
+      # available at all, which is not the case for GitHub-hosted runners.
+      # If this step is ever removed in favor of the documented fallback,
+      # that change and its reason belong in docs/deployment.md, not a
+      # silent CI edit.
+      - name: Atlas migration check
+        run: atlas migrate apply --url "$DATABASE_URL" --dir "file://db/migrations?format=flyway"
 
-      - name: Build
-        run: cargo build --workspace
+      - name: Cornucopia regeneration check
+        run: |
+          make cornucopia-generate
+          if ! git diff --exit-code -- packages/catalog-db/generated; then
+            echo ""
+            echo "ERROR: packages/catalog-db/generated is stale."
+            echo "A query file changed but 'make cornucopia-generate' was not"
+            echo "re-run and committed. Run it locally and commit the result."
+            exit 1
+          fi
 
-      - name: Test
-        run: cargo test --workspace
+      - name: Rust unit tests
+        run: cargo test --workspace --lib --bins
+
+      - name: Rust integration tests
+        run: cargo test --workspace --tests
