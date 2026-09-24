@@ -68,10 +68,10 @@ jobs:
           cache-dependency-path:  apps/admin/package-lock.json
 
       - name: Install deps
-        run: cd admin && npm ci
+        run: cd apps/admin && npm ci
 
       - name: Typecheck / build
-        run: cd admin && npm run build
+        run: cd apps/admin && npm run build
 
   # --------------------------------------------------------------------
   # Everything below needs a real Postgres (and Redis, for some tests),
